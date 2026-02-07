@@ -3,8 +3,8 @@ import { defineConfig } from 'drizzle-kit';
 export default defineConfig({
   schema: './src/db/schema.ts',
   out: './drizzle',
-  dialect: 'sqlite',
+  dialect: 'postgresql', // Changed to postgresql
   dbCredentials: {
-    url: 'sqlite.db',
+    url: process.env.DATABASE_URL!, // Expect DATABASE_URL for Neon
   },
 });

@@ -5,44 +5,47 @@ import { hash } from 'bcryptjs';
 async function main() {
   console.log('Seeding rooms...');
   
-  const existingRooms = await db.select().from(rooms).all();
-  if (existingRooms.length === 0) {
-    await db.insert(rooms).values([
-      {
-        name: 'Community Room A',
-        description: 'Large gathering space with projector',
-        capacity: 50,
-      },
-      {
-        name: 'Meeting Room B',
-        description: 'Conference table with 10 chairs',
-        capacity: 10,
-      },
-      {
-        name: 'Activity Room C',
-        description: 'Open space for kids and activities',
-        capacity: 25,
-      },
-    ]);
-    console.log('Rooms seeded.');
-  } else {
-    console.log('Rooms already exist. Skipping.');
-  }
+  // Clean up any existing rooms before seeding
+  await db.delete(rooms);
+
+  await db.insert(rooms).values([
+    {
+      name: 'Community Room A',
+      description: 'Large gathering space with projector',
+      capacity: 50,
+      openTime: '09:00',
+      closeTime: '17:00',
+    },
+    {
+      name: 'Meeting Room B',
+      description: 'Conference table with 10 chairs',
+      capacity: 10,
+      openTime: '09:00',
+      closeTime: '17:00',
+    },
+    {
+      name: 'Activity Room C',
+      description: 'Open space for kids and activities',
+      capacity: 25,
+      openTime: '09:00',
+      closeTime: '17:00',
+    },
+  ]);
+  console.log('Rooms seeded.');
 
   console.log('Seeding admin...');
-  const existingAdmin = await db.select().from(admins).all();
-  if (existingAdmin.length === 0) {
-    const hashedPassword = await hash('password123', 10);
-    await db.insert(admins).values({
-      username: 'admin',
-      password: hashedPassword,
-      fullName: 'System Administrator',
-      email: 'admin@example.com'
-    });
-    console.log('Default admin created: admin / password123');
-  } else {
-    console.log('Admin already exists. Skipping.');
-  }
+  // Clean up any existing admins before seeding
+  await db.delete(admins);
+
+  const hashedPassword = await hash('password123', 10);
+  await db.insert(admins).values({
+    username: 'admin',
+    password: hashedPassword,
+    fullName: 'System Administrator',
+    email: 'admin@example.com',
+    role: 'admin',
+  });
+  console.log('Default admin created: admin / password123');
 
   console.log('Seeding complete.');
 }
