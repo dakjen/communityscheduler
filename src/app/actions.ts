@@ -5,10 +5,12 @@ import { bookings, rooms, settings, admins } from '@/db/schema';
 import { eq, and, gte, lte } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { compare, hash } from 'bcryptjs';
-import { signSession, setSession, clearSession } from '@/lib/auth';
+import { getSession, signSession, setSession, clearSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
+
+// --- Admin User Management Actions ---
 
 export async function getAdmins() {
   return await db.select({
@@ -17,11 +19,10 @@ export async function getAdmins() {
     fullName: admins.fullName,
     email: admins.email,
     role: admins.role,
-  }).from(admins).all();
+  }).from(admins).execute();
 }
 
 export async function createAdmin(data: { username: string; password: string; fullName: string; email: string; role: 'admin' | 'staff' }) {
-  // Check if username exists
   const existing = await db.query.admins.findFirst({
     where: eq(admins.username, data.username)
   });
@@ -38,7 +39,7 @@ export async function createAdmin(data: { username: string; password: string; fu
     fullName: data.fullName,
     email: data.email,
     role: data.role,
-  });
+  }).execute();
 
   revalidatePath('/admin');
   return { success: true };
@@ -58,19 +59,17 @@ export async function updateAdmin(data: { id: number; fullName: string; email: s
     updateData.password = await hash(data.password, 10);
   }
 
-  await db.update(admins).set(updateData).where(eq(admins.id, data.id));
+  await db.update(admins).set(updateData).where(eq(admins.id, data.id)).execute();
   revalidatePath('/admin');
   return { success: true };
 }
 
 export async function deleteAdmin(id: number) {
-  // Prevent deleting the last admin or yourself (optional safety, for now just allow delete)
-  // Ideally, we check context to not delete self, but for this simple app, we just delete by ID.
-  await db.delete(admins).where(eq(admins.id, id));
+  await db.delete(admins).where(eq(admins.id, id)).execute();
   revalidatePath('/admin');
 }
 
-// --- Auth Actions ---
+// --- Authentication Actions ---
 
 export async function login(formData: FormData) {
   const username = formData.get('username') as string;
@@ -104,14 +103,12 @@ export async function logout() {
   redirect('/login');
 }
 
-
-// --- Shared / Utility ---
+// --- Settings Actions ---
 
 export async function getSettings() {
-  const allSettings = await db.select().from(settings).all();
-  // Default settings
+  const allSettings = await db.select().from(settings).execute();
   const defaults = {
-    officeHours: 'Monday - Friday: 9:00 AM - 5:00 PM\nSaturday: 10:00 AM - 2:00 PM\nSunday: Closed',
+    officeHours: '', // Empty string for default, as it's now per-staff
   };
 
   const map: Record<string, string> = {};
@@ -120,42 +117,10 @@ export async function getSettings() {
   return { ...defaults, ...map };
 }
 
-// ... existing imports ...
-import { getSession } from '@/lib/auth';
-
-// ... existing code ...
-
-export async function getStaffHours() {
-    return await db.select({
-        username: admins.username,
-        fullName: admins.fullName,
-        officeHours: admins.officeHours,
-        bio: admins.bio,
-    })
-    .from(admins)
-    .where(eq(admins.role, 'staff'))
-    .all();
-}
-
-export async function updateOfficeHours(scheduleText: string, bioText: string) {
-    const session = await getSession() as any;
-    if (!session || !session.id) throw new Error('Unauthorized');
-
-    await db.update(admins)
-        .set({ 
-            officeHours: scheduleText,
-            bio: bioText
-        })
-        .where(eq(admins.id, session.id));
-    
-    revalidatePath('/');
-    revalidatePath('/admin');
-}
-
-// --- Public Actions ---
+// --- Public Room Actions ---
 
 export async function getRooms() {
-  return await db.select().from(rooms).all();
+  return await db.select().from(rooms).execute();
 }
 
 export async function getBookings(roomId: number, date: Date) {
@@ -174,7 +139,7 @@ export async function getBookings(roomId: number, date: Date) {
           gte(bookings.endTime, startOfDay),
           lte(bookings.startTime, endOfDay)
       )
-  ).all();
+  ).execute();
 
   return foundBookings;
 }
@@ -188,10 +153,10 @@ export async function getBookingsForDate(date: Date) {
 
     return await db.select().from(bookings).where(
         and(
-            gte(bookings.startTime, startOfDay),
-            lte(bookings.endTime, endOfDay)
+            gte(bookings.endTime, startOfDay),
+            lte(bookings.startTime, endOfDay)
         )
-    ).all();
+    ).execute();
 }
 
 export async function createBooking(data: {
@@ -206,7 +171,6 @@ export async function createBooking(data: {
   startTime: Date;
   endTime: Date;
 }) {
-  // 1. Check Room Operating Hours
   const room = await db.query.rooms.findFirst({
       where: eq(rooms.id, data.roomId)
   });
@@ -226,12 +190,10 @@ export async function createBooking(data: {
   const openTotal = openHour * 60 + openMinute;
   const closeTotal = closeHour * 60 + closeMinute;
 
-  // Note: strict inequality for end time if bookings can end exactly at close time
   if (startTotal < openTotal || endTotal > closeTotal) {
     throw new Error(`Bookings for ${room.name} must be between ${room.openTime} and ${room.closeTime}.`);
   }
 
-  // 2. Simple conflict check
   const conflict = await db.query.bookings.findFirst({
     where: and(
       eq(bookings.roomId, data.roomId),
@@ -246,15 +208,15 @@ export async function createBooking(data: {
 
   await db.insert(bookings).values({
     ...data,
-    status: 'confirmed', // Auto-confirm for now
-  });
+    status: 'confirmed',
+  }).execute();
 
   revalidatePath('/');
   revalidatePath('/admin');
   return { success: true };
 }
 
-// --- Admin Actions ---
+// --- Admin Room Management Actions ---
 
 export async function getAllBookings() {
     return await db.select({
@@ -267,13 +229,14 @@ export async function getAllBookings() {
     })
     .from(bookings)
     .leftJoin(rooms, eq(bookings.roomId, rooms.id))
-    .orderBy(bookings.startTime);
+    .orderBy(bookings.startTime)
+    .execute();
 }
 
 export async function deleteBooking(id: number) {
-    await db.delete(bookings).where(eq(bookings.id, id));
-    revalidatePath('/admin');
-    revalidatePath('/');
+  await db.delete(bookings).where(eq(bookings.id, id)).execute();
+  revalidatePath('/admin');
+  revalidatePath('/');
 }
 
 export async function createRoom(formData: FormData) {
@@ -290,7 +253,6 @@ export async function createRoom(formData: FormData) {
     const bytes = await imageFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
-    // Create a unique filename
     const filename = `${Date.now()}-${imageFile.name.replace(/\s/g, '-')}`;
     const path = join(process.cwd(), 'public/uploads', filename);
     
@@ -305,7 +267,7 @@ export async function createRoom(formData: FormData) {
     imageUrl,
     openTime,
     closeTime
-  });
+  }).execute();
 
   revalidatePath('/');
   revalidatePath('/admin');
@@ -332,7 +294,6 @@ export async function updateRoom(formData: FormData) {
     const bytes = await imageFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
-    // Create a unique filename
     const filename = `${Date.now()}-${imageFile.name.replace(/\s/g, '-')}`;
     const path = join(process.cwd(), 'public/uploads', filename);
     
@@ -340,29 +301,43 @@ export async function updateRoom(formData: FormData) {
     updateData.imageUrl = `/uploads/${filename}`;
   }
 
-  await db.update(rooms).set(updateData).where(eq(rooms.id, id));
+  await db.update(rooms).set(updateData).where(eq(rooms.id, id)).execute();
   revalidatePath('/');
   revalidatePath('/admin');
   return { success: true };
 }
 
 export async function deleteRoom(id: number) {
-  // Optional: Check for future bookings before deleting?
-  // For now, we will cascade delete or just delete (SQLite schema needs ON DELETE CASCADE for foreign keys to be auto, otherwise manual)
-  // We'll just delete the room. Bookings might get orphaned or need cleanup.
-  // Ideally: await db.delete(bookings).where(eq(bookings.roomId, id));
-  await db.delete(rooms).where(eq(rooms.id, id));
+  await db.delete(rooms).where(eq(rooms.id, id)).execute();
   revalidatePath('/');
   revalidatePath('/admin');
 }
 
-export async function updateSettings(data: { openTime: string; closeTime: string }) {
-  await db.insert(settings).values({ key: 'openTime', value: data.openTime })
-    .onConflictDoUpdate({ target: settings.key, set: { value: data.openTime } });
-  
-  await db.insert(settings).values({ key: 'closeTime', value: data.closeTime })
-    .onConflictDoUpdate({ target: settings.key, set: { value: data.closeTime } });
+// --- Staff Office Hours Actions ---
 
-  revalidatePath('/');
-  revalidatePath('/admin');
+export async function getStaffHours() {
+    return await db.select({
+        username: admins.username,
+        fullName: admins.fullName,
+        officeHours: admins.officeHours,
+        bio: admins.bio,
+    })
+    .from(admins)
+    .where(eq(admins.role, 'staff'))
+    .execute();
+}
+
+export async function updateOfficeHours(scheduleText: string, bioText: string) {
+    const session = await getSession() as any;
+    if (!session || !session.id) throw new Error('Unauthorized');
+
+    await db.update(admins)
+        .set({ 
+            officeHours: scheduleText,
+            bio: bioText
+        })
+        .where(eq(admins.id, session.id)).execute();
+    
+    revalidatePath('/');
+    revalidatePath('/admin');
 }

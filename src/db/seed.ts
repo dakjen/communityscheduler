@@ -1,12 +1,13 @@
 import { db } from './index';
 import { rooms, admins } from './schema';
 import { hash } from 'bcryptjs';
+import { eq } from 'drizzle-orm';
 
 async function main() {
   console.log('Seeding rooms...');
   
   // Clean up any existing rooms before seeding
-  await db.delete(rooms);
+  await db.delete(rooms).execute();
 
   await db.insert(rooms).values([
     {
@@ -30,12 +31,12 @@ async function main() {
       openTime: '09:00',
       closeTime: '17:00',
     },
-  ]);
+  ]).execute();
   console.log('Rooms seeded.');
 
   console.log('Seeding admin...');
   // Clean up any existing admins before seeding
-  await db.delete(admins);
+  await db.delete(admins).execute();
 
   const hashedPassword = await hash('password123', 10);
   await db.insert(admins).values({
@@ -44,7 +45,9 @@ async function main() {
     fullName: 'System Administrator',
     email: 'admin@example.com',
     role: 'admin',
-  });
+    officeHours: '', // Default empty office hours
+    bio: 'General inquiries and system support'
+  }).execute();
   console.log('Default admin created: admin / password123');
 
   console.log('Seeding complete.');
