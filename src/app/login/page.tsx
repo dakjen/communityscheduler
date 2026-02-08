@@ -9,13 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { login, createAdminAction } from '@/app/actions';
 import { toast } from 'sonner';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation'; // Added useRouter import
 
 function LoginFormContent() {
   const [error, setError] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const searchParams = useSearchParams();
   const isRegistered = searchParams.get('registered') === 'true';
+  const router = useRouter(); // Initialize useRouter
 
   const handleSubmit = async (formData: FormData) => {
     setError('');
@@ -75,6 +76,13 @@ function LoginFormContent() {
             {error && <p className="text-sm text-red-500">{error}</p>}
             <Button type="submit" className="w-full">
               {isLogin ? 'Sign In' : 'Submit Request'}
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full mt-2" 
+              onClick={() => router.back()}
+            >
+              Back
             </Button>
           </form>
           <div className="mt-4 text-center">
