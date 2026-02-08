@@ -180,36 +180,47 @@ export default function AdminDashboard({ bookings, rooms, admins }: { bookings: 
 
             {/* --- BOOKINGS TAB --- */}
             <TabsContent value="bookings">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Upcoming Bookings</CardTitle>
-                        <CardDescription>Manage all community center reservations</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {bookings.length === 0 ? (
-                            <p className="text-muted-foreground text-center py-8">No bookings found.</p>
-                        ) : (
-                            <div className="space-y-4">
-                                {bookings.map((booking) => (
-                                    <div key={booking.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50">
-                                        <div>
-                                            <h4 className="font-medium">{booking.purpose}</h4>
-                                            <p className="text-sm text-muted-foreground">
-                                                {booking.customerName} • {booking.roomName}
-                                            </p>
-                                            <p className="text-sm font-semibold text-slate-700">
-                                                {format(booking.startTime, 'MMM d, h:mm a')} - {format(booking.endTime, 'h:mm a')}
-                                            </p>
-                                        </div>
-                                        <Button variant="ghost" size="icon" onClick={() => handleDeleteBooking(booking.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50">
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                <div className="flex gap-4"> {/* Flex container for sidebar and main content */}
+                    {/* Sidebar */}
+                    <div className="w-64 p-4 border rounded-lg bg-white flex-shrink-0"> {/* Placeholder sidebar */}
+                        <h3 className="font-semibold mb-4">Bookings Filters</h3>
+                        <p className="text-sm text-muted-foreground">Filter options will go here.</p>
+                    </div>
+
+                    {/* Main Content (existing Card) */}
+                    <div className="flex-grow"> {/* Allows main content to take remaining space */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Upcoming Bookings</CardTitle>
+                                <CardDescription>Manage all community center reservations</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {bookings.length === 0 ? (
+                                    <p className="text-muted-foreground text-center py-8">No bookings found.</p>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {bookings.map((booking) => (
+                                            <div key={booking.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50">
+                                                <div>
+                                                    <h4 className="font-medium">{booking.purpose}</h4>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {booking.customerName} • {booking.roomName}
+                                                    </p>
+                                                    <p className="text-sm font-semibold text-slate-700">
+                                                        {format(booking.startTime, 'MMM d, h:mm a')} - {format(booking.endTime, 'h:mm a')}
+                                                    </p>
+                                                </div>
+                                                <Button variant="ghost" size="icon" onClick={() => handleDeleteBooking(booking.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
             </TabsContent>
 
             {/* --- ROOMS TAB --- */}

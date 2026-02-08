@@ -33,9 +33,8 @@ const END_HOUR = 22; // 10 PM to cover late events
 
 export default function PublicBookings({ rooms, bookings }: { rooms: Room[], bookings: Booking[] }) {
     const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
-    // Determine which rooms are open (collapsible state)
-    // Default: first room open? or all closed? Let's say all closed to save space, or first one open.
-    const [openRooms, setOpenRooms] = useState<number[]>([rooms[0]?.id]);
+    const [openRooms, setOpenRooms] = useState<number[]>([]); // Default: all rooms closed
+    const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null); // State for filtering bookings
 
     const toggleRoom = (id: number) => {
         setOpenRooms(prev => 
@@ -45,6 +44,27 @@ export default function PublicBookings({ rooms, bookings }: { rooms: Room[], boo
 
     const nextWeek = () => setWeekStart(addWeeks(weekStart, 1));
     const prevWeek = () => setWeekStart(subWeeks(weekStart, 1));
+
+    const handleRoomFilterClick = (roomId: number | null) => {
+        setSelectedRoomId(roomId);
+        // If a specific room is selected, open only that room. Otherwise, close all.
+        setOpenRooms(roomId !== null ? [roomId] : []);
+    };
+
+    // Filter bookings based on selectedRoomId
+    const filteredBookings = selectedRoomId
+        ? bookings.filter(booking => booking.roomId === selectedRoomId)
+        : bookings;
+
+    // Reorder rooms to put selected one at the top
+    const displayedRooms = [...rooms];
+    if (selectedRoomId !== null) {
+        const selectedRoomIndex = displayedRooms.findIndex(room => room.id === selectedRoomId);
+        if (selectedRoomIndex > -1) {
+            const [roomToMove] = displayedRooms.splice(selectedRoomIndex, 1);
+            displayedRooms.unshift(roomToMove);
+        }
+    }
 
     // Generate week days
     const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
@@ -59,7 +79,33 @@ export default function PublicBookings({ rooms, bookings }: { rooms: Room[], boo
     }
 
     return (
-        <div className="space-y-6">
+        <div className="flex gap-4"> {/* Main flex container for sidebar and content */}
+            {/* Sidebar */}
+            <div className="w-64 p-4 border rounded-lg bg-white flex-shrink-0 self-start sticky top-4"> {/* Sidebar content */}
+                <h3 className="font-semibold mb-4 text-lg">Filter by Room</h3>
+                <div className="space-y-1">
+                    <Button
+                        variant={selectedRoomId === null ? "secondary" : "ghost"}
+                        onClick={() => handleRoomFilterClick(null)}
+                        className="w-full justify-start"
+                    >
+                        All Rooms
+                    </Button>
+                    {rooms.map((room) => (
+                        <Button
+                            key={room.id}
+                            variant={selectedRoomId === room.id ? "secondary" : "ghost"}
+                            onClick={() => handleRoomFilterClick(room.id)}
+                            className="w-full justify-start"
+                        >
+                            {room.name}
+                        </Button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Main Content (wrapping the original content) */}
+            <div className="flex-grow space-y-6">
             {/* Controls */}
             <div className="flex items-center justify-between bg-slate-50 p-4 rounded-lg border">
                 <div className="flex items-center gap-2">
@@ -206,6 +252,7 @@ export default function PublicBookings({ rooms, bookings }: { rooms: Room[], boo
                         </Card>
                     );
                 })}
+            </div>
             </div>
         </div>
     );
