@@ -7,38 +7,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { deleteBooking, createRoom, deleteRoom, updateRoom, createAdmin, deleteAdmin, updateAdmin } from '@/app/actions';
+import { 
+    deleteBooking, createRoom, deleteRoom, updateRoom, 
+    createAdmin, deleteAdmin, updateAdmin, 
+    approveAdmin, rejectAdmin // New imports
+} from '@/app/actions';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { Trash2, Plus, UserPlus, Shield, Pencil } from 'lucide-react';
+import { Trash2, Plus, UserPlus, Shield, Pencil, Check, X } from 'lucide-react'; // New icons
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
-type Booking = {
-    id: number;
-    roomName: string | null;
-    customerName: string;
-    startTime: Date;
-    endTime: Date;
-    purpose: string;
-};
-
-type Room = {
-    id: number;
-    name: string;
-    description: string | null;
-    capacity: number;
-    imageUrl: string | null;
-    openTime: string;
-    closeTime: string;
-};
-
-type Admin = {
-    id: number;
-    username: string;
-    fullName: string | null;
-    email: string | null;
-    role: 'admin' | 'staff';
-};
+// ... (existing types)
 
 export default function AdminDashboard({ bookings, rooms, admins }: { bookings: Booking[], rooms: Room[], admins: Admin[] }) {
     const [newRoom, setNewRoom] = useState({ name: '', capacity: '', description: '', openTime: '09:00', closeTime: '17:00' });
@@ -48,6 +27,10 @@ export default function AdminDashboard({ bookings, rooms, admins }: { bookings: 
     const [newAdmin, setNewAdmin] = useState({ username: '', password: '', fullName: '', email: '', role: 'admin' });
     const [editingAdmin, setEditingAdmin] = useState<Admin & { password?: string } | null>(null);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+    // Filter admins based on status
+    const activeAdmins = admins.filter(admin => admin.status === 'active');
+    const pendingRequests = admins.filter(admin => admin.status === 'pending');
     
     // --- Booking Handlers ---
     const handleDeleteBooking = async (id: number) => {
@@ -163,12 +146,33 @@ export default function AdminDashboard({ bookings, rooms, admins }: { bookings: 
         }
     };
 
+    const handleApproveAdmin = async (id: number) => {
+        if (!confirm('Approve this account request?')) return;
+        try {
+            await approveAdmin(id);
+            toast.success('Account approved!');
+        } catch (e) {
+            toast.error('Failed to approve account.');
+        }
+    };
+
+    const handleRejectAdmin = async (id: number) => {
+        if (!confirm('Reject and delete this account request?')) return;
+        try {
+            await rejectAdmin(id);
+            toast.success('Account rejected and deleted.');
+        } catch (e) {
+            toast.error('Failed to reject account.');
+        }
+    };
+
     return (
         <Tabs defaultValue="bookings" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-8">
+            <TabsList className="grid w-full grid-cols-4 mb-8">
                 <TabsTrigger value="bookings">Bookings</TabsTrigger>
                 <TabsTrigger value="rooms">Rooms</TabsTrigger>
                 <TabsTrigger value="admins">Users</TabsTrigger>
+                <TabsTrigger value="requests">Requests ({pendingRequests.length})</TabsTrigger>
             </TabsList>
 
             {/* --- BOOKINGS TAB --- */}
@@ -388,15 +392,25 @@ export default function AdminDashboard({ bookings, rooms, admins }: { bookings: 
                 </div>
             </TabsContent>
 
-            {/* --- ADMINS TAB --- */}
             <TabsContent value="admins">
                 <div className="grid gap-6">
                     <Card>
                         <CardHeader>
                             <CardTitle>Create New User</CardTitle>
+                            <CardDescription>Create a new administrative user directly.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={handleCreateAdmin} className="grid grid-cols-2 gap-4">
+                            <form onSubmit={(e) => { 
+                                e.preventDefault(); 
+                                try {
+                                    // Make sure status is active for direct creation
+                                    createAdmin({...newAdmin, status: 'active'} as any); 
+                                    setNewAdmin({ username: '', password: '', fullName: '', email: '', role: 'admin', status: 'admin' }); // Reset form
+                                    toast.success('User created');
+                                } catch (error: any) {
+                                    toast.error(error.message || 'Failed to create user');
+                                }
+                            }} className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Username</Label>
                                     <Input 
@@ -452,11 +466,11 @@ export default function AdminDashboard({ bookings, rooms, admins }: { bookings: 
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>System Users</CardTitle>
+                            <CardTitle>Active System Users</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {admins.map((admin) => (
+                                {activeAdmins.map((admin) => (
                                     <div key={admin.id} className="flex items-center justify-between p-4 border rounded-lg">
                                         <div className="flex items-center gap-3">
                                             <div className="bg-slate-100 p-2 rounded-full">
@@ -528,6 +542,44 @@ export default function AdminDashboard({ bookings, rooms, admins }: { bookings: 
                         </CardContent>
                     </Card>
                 </div>
+            </TabsContent>
+
+            <TabsContent value="requests">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Account Requests</CardTitle>
+                        <CardDescription>Review and manage pending administrator account requests.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {pendingRequests.length === 0 ? (
+                            <p className="text-muted-foreground text-center py-8">No pending account requests.</p>
+                        ) : (
+                            <div className="space-y-4">
+                                {pendingRequests.map((admin) => (
+                                    <div key={admin.id} className="flex items-center justify-between p-4 border rounded-lg">
+                                        <div className="flex items-center gap-3">
+                                            <div className="bg-slate-100 p-2 rounded-full">
+                                                <Shield className="h-5 w-5 text-slate-600" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-medium">{admin.fullName} <span className="text-slate-400 text-sm">(@{admin.username})</span></h4>
+                                                <p className="text-xs text-muted-foreground">{admin.email} • Requested as <span className="uppercase font-bold text-primary">{admin.role}</span></p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button variant="outline" size="icon" onClick={() => handleApproveAdmin(admin.id)} className="text-green-500 hover:text-green-600 hover:bg-green-50">
+                                                <Check className="h-4 w-4" />
+                                            </Button>
+                                            <Button variant="outline" size="icon" onClick={() => handleRejectAdmin(admin.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
             </TabsContent>
         </Tabs>
     );
