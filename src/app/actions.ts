@@ -17,6 +17,7 @@ export async function getAdmins() {
     fullName: admins.fullName,
     email: admins.email,
     role: admins.role,
+    status: admins.status,
   }).from(admins).execute();
 }
 
@@ -62,7 +63,8 @@ export async function createAdminAction(formData: FormData) {
     role: 'admin',
   });
 
-  // Automatically log in the new admin
+  // Automatically log in the new admin - REMOVED
+  /*
   const newAdmin = await db.query.admins.findFirst({
     where: eq(admins.username, username),
   });
@@ -73,6 +75,18 @@ export async function createAdminAction(formData: FormData) {
   }
 
   redirect('/admin');
+  */
+  redirect('/login?registered=true');
+}
+
+export async function approveAdmin(id: number, role: 'admin' | 'staff') {
+  await db.update(admins).set({ status: 'active', role }).where(eq(admins.id, id)).execute();
+  revalidatePath('/admin');
+}
+
+export async function rejectAdmin(id: number) {
+  await db.delete(admins).where(eq(admins.id, id)).execute();
+  revalidatePath('/admin');
 }
 
 export async function updateAdmin(data: { id: number; fullName: string; email: string; password?: string; role?: 'admin' | 'staff' }) {
@@ -115,6 +129,10 @@ export async function login(formData: FormData) {
 
   if (!admin) {
     throw new Error('Invalid credentials.');
+  }
+
+  if (admin.status !== 'active') {
+    throw new Error('Account pending approval.');
   }
 
   const isValid = await compare(password, admin.password);
@@ -238,12 +256,24 @@ export async function createBooking(data: {
 
   await db.insert(bookings).values({
     ...data,
-    status: 'confirmed',
+    status: 'pending',
   }).execute();
 
   revalidatePath('/');
   revalidatePath('/admin');
   return { success: true };
+}
+
+export async function approveBooking(id: number) {
+  await db.update(bookings).set({ status: 'confirmed' }).where(eq(bookings.id, id)).execute();
+  revalidatePath('/admin');
+  revalidatePath('/');
+}
+
+export async function rejectBooking(id: number) {
+  await db.delete(bookings).where(eq(bookings.id, id)).execute();
+  revalidatePath('/admin');
+  revalidatePath('/');
 }
 
 // --- Admin Room Management Actions ---
@@ -257,6 +287,7 @@ export async function getAllBookings() {
         startTime: bookings.startTime,
         endTime: bookings.endTime,
         purpose: bookings.purpose,
+        status: bookings.status,
     })
     .from(bookings)
     .leftJoin(rooms, eq(bookings.roomId, rooms.id))

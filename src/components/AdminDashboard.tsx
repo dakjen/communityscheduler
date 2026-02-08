@@ -27,6 +27,7 @@ export default function AdminDashboard({ bookings, rooms, admins }: { bookings: 
     const [newAdmin, setNewAdmin] = useState({ username: '', password: '', fullName: '', email: '', role: 'admin' });
     const [editingAdmin, setEditingAdmin] = useState<Admin & { password?: string } | null>(null);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [requestRoles, setRequestRoles] = useState<Record<number, 'admin' | 'staff'>>({}); // Track selected roles for requests
 
     // Filter admins based on status
     const activeAdmins = admins.filter(admin => admin.status === 'active');
@@ -149,7 +150,9 @@ export default function AdminDashboard({ bookings, rooms, admins }: { bookings: 
     const handleApproveAdmin = async (id: number) => {
         if (!confirm('Approve this account request?')) return;
         try {
-            await approveAdmin(id);
+            const admin = admins.find(a => a.id === id);
+            const role = requestRoles[id] || admin?.role || 'staff';
+            await approveAdmin(id, role);
             toast.success('Account approved!');
         } catch (e) {
             toast.error('Failed to approve account.');
@@ -563,10 +566,25 @@ export default function AdminDashboard({ bookings, rooms, admins }: { bookings: 
                                             </div>
                                             <div>
                                                 <h4 className="font-medium">{admin.fullName} <span className="text-slate-400 text-sm">(@{admin.username})</span></h4>
-                                                <p className="text-xs text-muted-foreground">{admin.email} • Requested as <span className="uppercase font-bold text-primary">{admin.role}</span></p>
+                                                <p className="text-xs text-muted-foreground">{admin.email}</p>
                                             </div>
                                         </div>
-                                        <div className="flex gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 mr-2">
+                                                <span className="text-xs text-muted-foreground">Role:</span>
+                                                <Select 
+                                                    value={requestRoles[admin.id] || admin.role} 
+                                                    onValueChange={(val: any) => setRequestRoles(prev => ({ ...prev, [admin.id]: val }))}
+                                                >
+                                                    <SelectTrigger className="w-[100px] h-8 text-xs">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="admin">Admin</SelectItem>
+                                                        <SelectItem value="staff">Staff</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
                                             <Button variant="outline" size="icon" onClick={() => handleApproveAdmin(admin.id)} className="text-green-500 hover:text-green-600 hover:bg-green-50">
                                                 <Check className="h-4 w-4" />
                                             </Button>
