@@ -7,8 +7,11 @@ import { ClerkProvider } from '@clerk/nextjs'
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Community Scheduler",
+  title: "Book a Room at the 9410 PCC Building",
   description: "Book community rooms easily",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({
