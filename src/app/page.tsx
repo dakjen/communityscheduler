@@ -1,6 +1,7 @@
-import { getRooms, getStaffHours } from './actions';
+import { getRooms, getStaffHours, getAllBookings } from './actions';
 import BookingInterface from '@/components/BookingInterface';
 import WeeklyOverview from '@/components/WeeklyOverview';
+import PublicBookings from '@/components/PublicBookings';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
@@ -69,6 +70,7 @@ function formatRange(start: string, end: string) {
 export default async function Home() {
   const rooms = await getRooms();
   const staffMembers = await getStaffHours();
+  const bookings = await getAllBookings();
 
   return (
     <main className="min-h-screen bg-white p-4 md:p-8">
@@ -93,14 +95,19 @@ export default async function Home() {
           </div>
         </header>
 
-        <Tabs defaultValue="book">
-            <TabsList className="grid w-full grid-cols-2 mb-8 max-w-md">
+        <Tabs defaultValue="bookings">
+            <TabsList className="grid w-full grid-cols-3 mb-8 max-w-xl">
+                <TabsTrigger value="bookings">Current Bookings</TabsTrigger>
                 <TabsTrigger value="book">Book a Room</TabsTrigger>
                 <TabsTrigger value="hours">Office Hours</TabsTrigger>
             </TabsList>
 
             <TabsContent value="book">
                 <BookingInterface rooms={rooms} />
+            </TabsContent>
+
+            <TabsContent value="bookings">
+                <PublicBookings rooms={rooms} bookings={bookings} />
             </TabsContent>
 
             <TabsContent value="hours">

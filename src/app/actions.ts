@@ -23,8 +23,9 @@ export async function getAdmins() {
 }
 
 export async function createAdmin(data: { username: string; password: string; fullName: string; email: string; role: 'admin' | 'staff' }) {
+  const normalizedUsername = data.username.toLowerCase();
   const existing = await db.query.admins.findFirst({
-    where: eq(admins.username, data.username)
+    where: eq(admins.username, normalizedUsername)
   });
   
   if (existing) {
@@ -34,7 +35,7 @@ export async function createAdmin(data: { username: string; password: string; fu
   const hashedPassword = await hash(data.password, 10);
   
   await db.insert(admins).values({
-    username: data.username,
+    username: normalizedUsername,
     password: hashedPassword,
     fullName: data.fullName,
     email: data.email,
@@ -43,6 +44,37 @@ export async function createAdmin(data: { username: string; password: string; fu
 
   revalidatePath('/admin');
   return { success: true };
+}
+
+export async function createAdminAction(formData: FormData) {
+  const username = (formData.get('username') as string).toLowerCase();
+  const password = formData.get('password') as string;
+  const fullName = formData.get('fullName') as string;
+  const email = formData.get('email') as string;
+
+  if (!username || !password || !fullName || !email) {
+    throw new Error('All fields are required.');
+  }
+
+  await createAdmin({
+    username,
+    password,
+    fullName,
+    email,
+    role: 'admin',
+  });
+
+  // Automatically log in the new admin
+  const newAdmin = await db.query.admins.findFirst({
+    where: eq(admins.username, username),
+  });
+
+  if (newAdmin) {
+    const token = await signSession({ id: newAdmin.id, username: newAdmin.username, role: newAdmin.role });
+    await setSession(token);
+  }
+
+  redirect('/admin');
 }
 
 export async function updateAdmin(data: { id: number; fullName: string; email: string; password?: string; role?: 'admin' | 'staff' }) {
@@ -72,7 +104,7 @@ export async function deleteAdmin(id: number) {
 // --- Authentication Actions ---
 
 export async function login(formData: FormData) {
-  const username = formData.get('username') as string;
+  const username = (formData.get('username') as string).toLowerCase();
   const password = formData.get('password') as string;
 
   if (!username || !password) {
@@ -221,6 +253,7 @@ export async function createBooking(data: {
 export async function getAllBookings() {
     return await db.select({
         id: bookings.id,
+        roomId: bookings.roomId,
         roomName: rooms.name,
         customerName: bookings.customerName,
         startTime: bookings.startTime,

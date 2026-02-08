@@ -52,3 +52,8 @@ next-env.d.ts
 drizzle/migrations
 drizzle-kit-commands.json
 .drizzle/
+
+# Gemini generated temporary files
+/test-db.ts
+/src/app/admin-debug/
+/public/uploads/
