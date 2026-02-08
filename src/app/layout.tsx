@@ -10,7 +10,8 @@ export const metadata: Metadata = {
   title: "Book a Room at the 9410 PCC Building",
   description: "Book community rooms easily",
   icons: {
-    icon: '/favicon.ico',
+    icon: '/NFT.png',
+    type: 'image/png',
   },
 };
 

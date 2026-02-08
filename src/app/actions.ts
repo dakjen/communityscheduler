@@ -2,7 +2,7 @@
 
 import { db } from '@/db';
 import { bookings, rooms, settings, admins } from '@/db/schema';
-import { eq, and, gt, lt } from 'drizzle-orm';
+import { eq, and, gt, lt, gte, lte } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { compare, hash } from 'bcryptjs';
 import { getSession, signSession, setSession, clearSession } from '@/lib/auth';

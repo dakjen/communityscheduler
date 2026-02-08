@@ -22,7 +22,7 @@ export const bookings = pgTable('bookings', {
   needPccHelp: boolean('need_pcc_help').default(false).notNull(),
   startTime: timestamp('start_time').notNull(),
   endTime: timestamp('end_time').notNull(),
-  status: varchar('status', { enum: ['pending', 'confirmed', 'cancelled'] }).default('confirmed'),
+  status: varchar('status', { enum: ['pending', 'confirmed', 'cancelled'] }).default('pending'),
 });
 
 export const settings = pgTable('settings', {
@@ -37,6 +37,7 @@ export const admins = pgTable('admins', {
   fullName: varchar('full_name', { length: 256 }),
   email: varchar('email', { length: 256 }),
   role: varchar('role', { enum: ['admin', 'staff'] }).notNull().default('admin'),
+  status: varchar('status', { enum: ['pending', 'active', 'rejected'] }).default('pending').notNull(),
   officeHours: text('office_hours'), // JSON string for individual schedule
   bio: text('bio'), // "What you can ask me about"
 });
