@@ -79,7 +79,9 @@ export default async function Home() {
       <div className="max-w-6xl mx-auto space-y-8">
         <header className="flex justify-between items-center pb-6 border-b border-secondary">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-primary">Community Scheduler</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-primary">
+  Welcome to the PCC Building Room Scheduler
+</h1>
             <p className="text-gray-500">Book a room for your event or meeting</p>
           </div>
           <div className="flex gap-4 items-center">
