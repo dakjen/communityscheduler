@@ -2,7 +2,7 @@
 
 import { db } from '@/db';
 import { bookings, rooms, settings, admins } from '@/db/schema';
-import { eq, and, gte, lte } from 'drizzle-orm';
+import { eq, and, gt, lt } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { compare, hash } from 'bcryptjs';
 import { getSession, signSession, setSession, clearSession } from '@/lib/auth';
@@ -227,8 +227,8 @@ export async function createBooking(data: {
   const conflict = await db.query.bookings.findFirst({
     where: and(
       eq(bookings.roomId, data.roomId),
-      gte(bookings.endTime, data.startTime),
-      lte(bookings.startTime, data.endTime)
+      gt(bookings.endTime, data.startTime),
+      lt(bookings.startTime, data.endTime)
     )
   });
 
