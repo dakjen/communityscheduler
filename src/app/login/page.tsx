@@ -23,7 +23,6 @@ function LoginFormContent() {
     try {
       if (isLogin) {
         await login(formData);
-        router.push('/admin'); // Explicitly redirect after successful login
       } else {
         await createAdminAction(formData);
       }
