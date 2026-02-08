@@ -95,10 +95,10 @@ export default async function Home() {
           </div>
         </header>
 
-        <Tabs defaultValue="bookings">
+        <Tabs defaultValue="book">
             <TabsList className="grid w-full grid-cols-3 mb-8 max-w-xl">
-                <TabsTrigger value="bookings">Current Bookings</TabsTrigger>
                 <TabsTrigger value="book">Book a Room</TabsTrigger>
+                <TabsTrigger value="bookings">Current Bookings</TabsTrigger>
                 <TabsTrigger value="hours">Office Hours</TabsTrigger>
             </TabsList>
 
