@@ -10,6 +10,7 @@
 !.yarn/releases
 !.yarn/versions
 /node_modules_old/
+/node_modules 2/
 
 # testing
 /coverage
