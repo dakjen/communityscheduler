@@ -5,7 +5,7 @@ export const rooms = pgTable('rooms', {
   name: varchar('name', { length: 256 }).notNull(),
   description: text('description'),
   capacity: integer('capacity').notNull(),
-  imageUrl: varchar('image_url', { length: 256 }),
+  imageUrl: text('image_url'), // Changed to text for Base64 storage
   openTime: varchar('open_time', { length: 5 }).notNull().default('09:00'), // HH:mm format
   closeTime: varchar('close_time', { length: 5 }).notNull().default('17:00'), // HH:mm format
 });

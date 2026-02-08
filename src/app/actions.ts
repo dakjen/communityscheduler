@@ -7,8 +7,6 @@ import { revalidatePath } from 'next/cache';
 import { compare, hash } from 'bcryptjs';
 import { getSession, signSession, setSession, clearSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
 
 // --- Admin User Management Actions ---
 
@@ -285,12 +283,9 @@ export async function createRoom(formData: FormData) {
   if (imageFile && imageFile.size > 0) {
     const bytes = await imageFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    
-    const filename = `${Date.now()}-${imageFile.name.replace(/\s/g, '-')}`;
-    const path = join(process.cwd(), 'public/uploads', filename);
-    
-    await writeFile(path, buffer);
-    imageUrl = `/uploads/${filename}`;
+    const mimeType = imageFile.type || 'image/jpeg';
+    const base64 = buffer.toString('base64');
+    imageUrl = `data:${mimeType};base64,${base64}`;
   }
 
   await db.insert(rooms).values({
@@ -326,12 +321,9 @@ export async function updateRoom(formData: FormData) {
   if (imageFile && imageFile.size > 0) {
     const bytes = await imageFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    
-    const filename = `${Date.now()}-${imageFile.name.replace(/\s/g, '-')}`;
-    const path = join(process.cwd(), 'public/uploads', filename);
-    
-    await writeFile(path, buffer);
-    updateData.imageUrl = `/uploads/${filename}`;
+    const mimeType = imageFile.type || 'image/jpeg';
+    const base64 = buffer.toString('base64');
+    updateData.imageUrl = `data:${mimeType};base64,${base64}`;
   }
 
   await db.update(rooms).set(updateData).where(eq(rooms.id, id)).execute();
