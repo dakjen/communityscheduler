@@ -1,12 +1,14 @@
-import { getAllBookings, getRooms, getSettings, getAdmins, logout } from '@/app/actions';
+import { getAllBookings, getRooms, getSettings, getAdmins, logout, getAppointmentRequests, getAllAppointmentRequests } from '@/app/actions';
 import AdminDashboard from '@/components/AdminDashboard';
 import StaffDashboard from '@/components/StaffDashboard';
+import AppointmentRequests from '@/components/AppointmentRequests';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { getSession } from '@/lib/auth';
 import { db } from '@/db';
 import { admins } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,10 +20,13 @@ export default async function AdminPage() {
     // Common data
     const settings = await getSettings();
 
-    if (role === 'staff') {
+    if (role === 'staff' || role === 'HTH') {
         const staffMember = await db.query.admins.findFirst({
             where: eq(admins.id, session.id)
         });
+        
+        // Fetch requests for this staff member
+        const requests = await getAppointmentRequests();
 
         return (
             <main className="min-h-screen bg-slate-50 p-4 md:p-8">
@@ -33,17 +38,37 @@ export default async function AdminPage() {
                         </div>
                         <div className="flex items-center gap-4">
                             <Link href="/">
-                                <Button variant="ghost">View Public Site</Button>
+                                <Button variant="ghost">Scheduling</Button>
+                            </Link>
+                            <Link href="/services">
+                                <Button variant="ghost">Services</Button>
+                            </Link>
+                            <Link href="/admin/profile">
+                                <Button variant="ghost">Profile</Button>
                             </Link>
                             <form action={logout}>
                                 <Button variant="outline" type="submit">Sign Out</Button>
                             </form>
                         </div>
                     </header>
-                    <StaffDashboard 
-                        officeHours={staffMember?.officeHours || ''} 
-                        bio={staffMember?.bio || ''}
-                    />
+                    
+                    <Tabs defaultValue="hours" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2 mb-8 max-w-sm">
+                            <TabsTrigger value="hours">My Hours</TabsTrigger>
+                            <TabsTrigger value="appointments">Appointments</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="hours">
+                            <StaffDashboard 
+                                officeHours={staffMember?.officeHours || ''} 
+                                bio={staffMember?.bio || ''}
+                            />
+                        </TabsContent>
+
+                        <TabsContent value="appointments">
+                            <AppointmentRequests requests={requests} />
+                        </TabsContent>
+                    </Tabs>
                 </div>
             </main>
         );
@@ -53,6 +78,7 @@ export default async function AdminPage() {
     const bookings = await getAllBookings();
     const rooms = await getRooms();
     const adminUsers = await getAdmins();
+    const allAppointmentRequests = await getAllAppointmentRequests();
 
     return (
         <main className="min-h-screen bg-slate-50 p-4 md:p-8">
@@ -64,7 +90,13 @@ export default async function AdminPage() {
                     </div>
                     <div className="flex items-center gap-4">
                         <Link href="/">
-                            <Button variant="ghost">View Public Site</Button>
+                            <Button variant="ghost">Scheduling</Button>
+                        </Link>
+                        <Link href="/services">
+                            <Button variant="ghost">Services</Button>
+                        </Link>
+                        <Link href="/admin/profile">
+                            <Button variant="ghost">Profile</Button>
                         </Link>
                         <form action={logout}>
                             <Button variant="outline" type="submit">Sign Out</Button>
@@ -76,6 +108,7 @@ export default async function AdminPage() {
                     bookings={bookings} 
                     rooms={rooms}
                     admins={adminUsers}
+                    appointmentRequests={allAppointmentRequests}
                 />
             </div>
         </main>

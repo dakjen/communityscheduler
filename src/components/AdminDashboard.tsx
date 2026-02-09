@@ -16,10 +16,11 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Trash2, Plus, UserPlus, Shield, Pencil, Check, X } from 'lucide-react'; // New icons
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import AppointmentRequests from '@/components/AppointmentRequests';
 
 // ... (existing types)
 
-export default function AdminDashboard({ bookings, rooms, admins }: { bookings: Booking[], rooms: Room[], admins: Admin[] }) {
+export default function AdminDashboard({ bookings, rooms, admins, appointmentRequests = [] }: { bookings: Booking[], rooms: Room[], admins: Admin[], appointmentRequests?: any[] }) {
     const [newRoom, setNewRoom] = useState({ name: '', capacity: '', description: '', openTime: '09:00', closeTime: '17:00' });
     const [editingRoom, setEditingRoom] = useState<Room | null>(null);
     const [isEditRoomOpen, setIsEditRoomOpen] = useState(false);
@@ -27,7 +28,7 @@ export default function AdminDashboard({ bookings, rooms, admins }: { bookings: 
     const [newAdmin, setNewAdmin] = useState({ username: '', password: '', fullName: '', email: '', role: 'admin' });
     const [editingAdmin, setEditingAdmin] = useState<Admin & { password?: string } | null>(null);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-    const [requestRoles, setRequestRoles] = useState<Record<number, 'admin' | 'staff'>>({}); // Track selected roles for requests
+    const [requestRoles, setRequestRoles] = useState<Record<number, 'admin' | 'staff' | 'HTH'>>({}); // Track selected roles for requests
 
     // Filter admins based on status
     const activeAdmins = admins.filter(admin => admin.status === 'active');
@@ -468,6 +469,7 @@ export default function AdminDashboard({ bookings, rooms, admins }: { bookings: 
                                         <SelectContent>
                                             <SelectItem value="admin">Admin</SelectItem>
                                             <SelectItem value="staff">Staff</SelectItem>
+                                            <SelectItem value="HTH">HTH</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -559,56 +561,69 @@ export default function AdminDashboard({ bookings, rooms, admins }: { bookings: 
             </TabsContent>
 
             <TabsContent value="requests">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Account Requests</CardTitle>
-                        <CardDescription>Review and manage pending administrator account requests.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {pendingRequests.length === 0 ? (
-                            <p className="text-muted-foreground text-center py-8">No pending account requests.</p>
-                        ) : (
-                            <div className="space-y-4">
-                                {pendingRequests.map((admin) => (
-                                    <div key={admin.id} className="flex items-center justify-between p-4 border rounded-lg">
-                                        <div className="flex items-center gap-3">
-                                            <div className="bg-slate-100 p-2 rounded-full">
-                                                <Shield className="h-5 w-5 text-slate-600" />
+                <div className="space-y-8">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Account Requests</CardTitle>
+                            <CardDescription>Review and manage pending administrator account requests.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {pendingRequests.length === 0 ? (
+                                <p className="text-muted-foreground text-center py-8">No pending account requests.</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {pendingRequests.map((admin) => (
+                                        <div key={admin.id} className="flex items-center justify-between p-4 border rounded-lg">
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-slate-100 p-2 rounded-full">
+                                                    <Shield className="h-5 w-5 text-slate-600" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-medium">{admin.fullName} <span className="text-slate-400 text-sm">(@{admin.username})</span></h4>
+                                                    <p className="text-xs text-muted-foreground">{admin.email}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h4 className="font-medium">{admin.fullName} <span className="text-slate-400 text-sm">(@{admin.username})</span></h4>
-                                                <p className="text-xs text-muted-foreground">{admin.email}</p>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-2 mr-2">
+                                                    <span className="text-xs text-muted-foreground">Role:</span>
+                                                    <Select 
+                                                        value={requestRoles[admin.id] || admin.role} 
+                                                        onValueChange={(val: any) => setRequestRoles(prev => ({ ...prev, [admin.id]: val }))}
+                                                    >
+                                                        <SelectTrigger className="w-[100px] h-8 text-xs">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="admin">Admin</SelectItem>
+                                                            <SelectItem value="staff">Staff</SelectItem>
+                                                            <SelectItem value="HTH">HTH</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <Button variant="outline" size="icon" onClick={() => handleApproveAdmin(admin.id)} className="text-green-500 hover:text-green-600 hover:bg-green-50">
+                                                    <Check className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="outline" size="icon" onClick={() => handleRejectAdmin(admin.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                                                    <X className="h-4 w-4" />
+                                                </Button>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex items-center gap-2 mr-2">
-                                                <span className="text-xs text-muted-foreground">Role:</span>
-                                                <Select 
-                                                    value={requestRoles[admin.id] || admin.role} 
-                                                    onValueChange={(val: any) => setRequestRoles(prev => ({ ...prev, [admin.id]: val }))}
-                                                >
-                                                    <SelectTrigger className="w-[100px] h-8 text-xs">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="admin">Admin</SelectItem>
-                                                        <SelectItem value="staff">Staff</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <Button variant="outline" size="icon" onClick={() => handleApproveAdmin(admin.id)} className="text-green-500 hover:text-green-600 hover:bg-green-50">
-                                                <Check className="h-4 w-4" />
-                                            </Button>
-                                            <Button variant="outline" size="icon" onClick={() => handleRejectAdmin(admin.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50">
-                                                <X className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Staff Requests</CardTitle>
+                            <CardDescription>Global view of all appointment requests.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <AppointmentRequests requests={appointmentRequests} />
+                        </CardContent>
+                    </Card>
+                </div>
             </TabsContent>
         </Tabs>
     );

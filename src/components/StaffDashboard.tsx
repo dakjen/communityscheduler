@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { updateOfficeHours } from '@/app/actions';
@@ -121,7 +121,7 @@ export default function StaffDashboard({ officeHours, bio }: { officeHours: stri
 
                         {/* Time Rows */}
                         {TIME_SLOTS.map(slot => (
-                            <>
+                            <Fragment key={slot.raw}>
                                 {/* Time Label */}
                                 <div key={slot.display} className="h-8 flex items-center justify-end pr-4 text-xs text-muted-foreground border-r border-b border-gray-200">
                                     {slot.display}
@@ -144,7 +144,7 @@ export default function StaffDashboard({ officeHours, bio }: { officeHours: stri
                                         />
                                     );
                                 })}
-                            </>
+                            </Fragment>
                         ))}
                     </div>
                 </div>

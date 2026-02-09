@@ -1,8 +1,8 @@
 'use server';
 
 import { db } from '@/db';
-import { bookings, rooms, settings, admins } from '@/db/schema';
-import { eq, and, gt, lt, gte, lte } from 'drizzle-orm';
+import { bookings, rooms, settings, admins, appointmentRequests } from '@/db/schema';
+import { eq, and, gt, lt, gte, lte, or } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { compare, hash } from 'bcryptjs';
 import { getSession, signSession, setSession, clearSession } from '@/lib/auth';
@@ -21,7 +21,7 @@ export async function getAdmins() {
   }).from(admins).execute();
 }
 
-export async function createAdmin(data: { username: string; password: string; fullName: string; email: string; role: 'admin' | 'staff' }) {
+export async function createAdmin(data: { username: string; password: string; fullName: string; email: string; role: 'admin' | 'staff' | 'HTH'; status?: 'pending' | 'active' | 'rejected' }) {
   const normalizedUsername = data.username.toLowerCase();
   const existing = await db.query.admins.findFirst({
     where: eq(admins.username, normalizedUsername)
@@ -39,6 +39,7 @@ export async function createAdmin(data: { username: string; password: string; fu
     fullName: data.fullName,
     email: data.email,
     role: data.role,
+    status: data.status || 'pending',
   }).execute();
 
   revalidatePath('/admin');
@@ -79,7 +80,7 @@ export async function createAdminAction(formData: FormData) {
   redirect('/login?registered=true');
 }
 
-export async function approveAdmin(id: number, role: 'admin' | 'staff') {
+export async function approveAdmin(id: number, role: 'admin' | 'staff' | 'HTH') {
   await db.update(admins).set({ status: 'active', role }).where(eq(admins.id, id)).execute();
   revalidatePath('/admin');
 }
@@ -89,7 +90,7 @@ export async function rejectAdmin(id: number) {
   revalidatePath('/admin');
 }
 
-export async function updateAdmin(data: { id: number; fullName: string; email: string; password?: string; role?: 'admin' | 'staff' }) {
+export async function updateAdmin(data: { id: number; fullName: string; email: string; password?: string; role?: 'admin' | 'staff' | 'HTH' }) {
   const updateData: any = {
     fullName: data.fullName,
     email: data.email,
@@ -377,9 +378,22 @@ export async function getStaffHours() {
         fullName: admins.fullName,
         officeHours: admins.officeHours,
         bio: admins.bio,
+        role: admins.role, // Added role to selection
     })
     .from(admins)
-    .where(eq(admins.role, 'staff'))
+    .where(or(eq(admins.role, 'staff'), eq(admins.role, 'HTH')))
+    .execute();
+}
+
+export async function getHTHStaff() {
+    return await db.select({
+        username: admins.username,
+        fullName: admins.fullName,
+        officeHours: admins.officeHours,
+        bio: admins.bio,
+    })
+    .from(admins)
+    .where(eq(admins.role, 'HTH'))
     .execute();
 }
 
@@ -396,4 +410,85 @@ export async function updateOfficeHours(scheduleText: string, bioText: string) {
     
     revalidatePath('/');
     revalidatePath('/admin');
+}
+
+export async function submitAppointmentRequest(data: {
+    customerName: string;
+    customerEmail: string;
+    customerPhone: string;
+    businessName?: string | null;
+    preferredDate: string;
+    preferredTime: string;
+    reason: string;
+    preferredStaffUsername?: string | null;
+}) {
+    await db.insert(appointmentRequests).values({
+        customerName: data.customerName,
+        customerEmail: data.customerEmail,
+        customerPhone: data.customerPhone,
+        businessName: data.businessName,
+        preferredDate: data.preferredDate,
+        preferredTime: data.preferredTime,
+        reason: data.reason,
+        preferredStaffUsername: data.preferredStaffUsername,
+    }).execute();
+
+    revalidatePath('/services');
+    revalidatePath('/admin');
+    return { success: true };
+}
+
+export async function getAppointmentRequests() {
+    const session = await getSession() as any;
+    if (!session || !session.username) return [];
+
+    return await db.select().from(appointmentRequests)
+        .where(eq(appointmentRequests.preferredStaffUsername, session.username))
+        .orderBy(appointmentRequests.createdAt) // Show oldest first? Or newest? Let's do newest for now or oldest pending.
+        .execute();
+}
+
+export async function getAllAppointmentRequests() {
+    const session = await getSession();
+    if (!session) return []; // Ensure authenticated
+
+    return await db.select({
+        id: appointmentRequests.id,
+        customerName: appointmentRequests.customerName,
+        customerEmail: appointmentRequests.customerEmail,
+        customerPhone: appointmentRequests.customerPhone,
+        businessName: appointmentRequests.businessName, // Include businessName
+        preferredDate: appointmentRequests.preferredDate,
+        preferredTime: appointmentRequests.preferredTime,
+        reason: appointmentRequests.reason,
+        preferredStaffUsername: appointmentRequests.preferredStaffUsername,
+        status: appointmentRequests.status,
+        createdAt: appointmentRequests.createdAt,
+        staffName: admins.fullName
+    })
+    .from(appointmentRequests)
+    .leftJoin(admins, eq(appointmentRequests.preferredStaffUsername, admins.username))
+    .orderBy(appointmentRequests.createdAt)
+    .execute();
+}
+
+export async function updateProfile(data: { fullName: string; email: string; bio?: string; password?: string }) {
+    const session = await getSession() as any;
+    if (!session || !session.id) throw new Error('Unauthorized');
+
+    const updateData: any = {
+        fullName: data.fullName,
+        email: data.email,
+        bio: data.bio, // Update bio
+    };
+
+    if (data.password && data.password.trim() !== '') {
+        updateData.password = await hash(data.password, 10);
+    }
+
+    await db.update(admins).set(updateData).where(eq(admins.id, session.id)).execute();
+    
+    revalidatePath('/admin/profile');
+    revalidatePath('/admin');
+    return { success: true };
 }

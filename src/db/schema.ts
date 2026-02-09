@@ -36,8 +36,22 @@ export const admins = pgTable('admins', {
   password: varchar('password', { length: 256 }).notNull(), // Hashed password
   fullName: varchar('full_name', { length: 256 }),
   email: varchar('email', { length: 256 }),
-  role: varchar('role', { enum: ['admin', 'staff'] }).notNull().default('admin'),
+  role: varchar('role', { enum: ['admin', 'staff', 'HTH'] }).notNull().default('admin'),
   status: varchar('status', { enum: ['pending', 'active', 'rejected'] }).default('pending').notNull(),
   officeHours: text('office_hours'), // JSON string for individual schedule
   bio: text('bio'), // "What you can ask me about"
+});
+
+export const appointmentRequests = pgTable('appointment_requests', {
+  id: serial('id').primaryKey(),
+  customerName: varchar('customer_name', { length: 256 }).notNull(),
+  customerEmail: varchar('customer_email', { length: 256 }).notNull(),
+  customerPhone: varchar('customer_phone', { length: 20 }).notNull(),
+  businessName: varchar('business_name', { length: 256 }), // New field
+  preferredDate: varchar('preferred_date', { length: 50 }).notNull(),
+  preferredTime: varchar('preferred_time', { length: 50 }).notNull(),
+  reason: text('reason').notNull(),
+  preferredStaffUsername: varchar('preferred_staff_username', { length: 256 }),
+  status: varchar('status', { enum: ['pending', 'confirmed', 'rejected'] }).default('pending').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
 });
