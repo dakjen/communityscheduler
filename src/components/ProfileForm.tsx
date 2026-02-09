@@ -5,25 +5,55 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { updateProfile } from '@/app/actions';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, X } from 'lucide-react';
 
 export default function ProfileForm({ user }: { user: any }) {
     const [fullName, setFullName] = useState(user.fullName || '');
     const [email, setEmail] = useState(user.email || '');
-    const [bio, setBio] = useState(user.bio || '');
+    // Parse initial bio into array of strings
+    const [specialties, setSpecialties] = useState<string[]>(
+        user.bio ? user.bio.split(',').map((s: string) => s.trim()).filter(Boolean) : []
+    );
+    const [newSpecialty, setNewSpecialty] = useState('');
+    
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
+    const addSpecialty = () => {
+        if (newSpecialty.trim()) {
+            if (!specialties.includes(newSpecialty.trim())) {
+                setSpecialties([...specialties, newSpecialty.trim()]);
+            }
+            setNewSpecialty('');
+        }
+    };
+
+    const removeSpecialty = (index: number) => {
+        setSpecialties(specialties.filter((_, i) => i !== index));
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addSpecialty();
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        if (password && password !== confirmPassword) {
+        if (password !== confirmPassword) {
             toast.error("Passwords don't match");
             return;
+        }
+
+        // Include any pending specialty in the input field
+        const finalSpecialties = [...specialties];
+        if (newSpecialty.trim() && !specialties.includes(newSpecialty.trim())) {
+            finalSpecialties.push(newSpecialty.trim());
         }
 
         setIsSaving(true);
@@ -31,12 +61,14 @@ export default function ProfileForm({ user }: { user: any }) {
             await updateProfile({
                 fullName,
                 email,
-                bio,
+                bio: finalSpecialties.join(', '),
                 password: password || undefined
             });
             toast.success('Profile updated successfully');
             setPassword('');
             setConfirmPassword('');
+            setNewSpecialty('');
+            setSpecialties(finalSpecialties);
         } catch (e: any) {
             toast.error(e.message || 'Failed to update profile');
         } finally {
@@ -80,14 +112,35 @@ export default function ProfileForm({ user }: { user: any }) {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="bio">Specialties / Bio</Label>
-                        <Textarea 
-                            id="bio" 
-                            value={bio} 
-                            onChange={(e) => setBio(e.target.value)} 
-                            placeholder="Tell us about your specialties or what you can teach..."
-                            rows={4}
-                        />
+                        <Label>Specialties / Topics</Label>
+                        <div className="flex gap-2">
+                            <Input 
+                                value={newSpecialty} 
+                                onChange={(e) => setNewSpecialty(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder="Add a specialty (e.g. Finance, Marketing)"
+                            />
+                            <Button type="button" onClick={addSpecialty} size="icon" variant="secondary">
+                                <Plus className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {specialties.map((specialty, index) => (
+                                <div key={index} className="flex items-center gap-1 bg-secondary px-3 py-1 rounded-full text-sm">
+                                    <span>{specialty}</span>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => removeSpecialty(index)}
+                                        className="text-muted-foreground hover:text-foreground"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            ))}
+                            {specialties.length === 0 && (
+                                <p className="text-xs text-muted-foreground italic">No specialties added yet.</p>
+                            )}
+                        </div>
                     </div>
 
                     <div className="space-y-2 pt-4 border-t">

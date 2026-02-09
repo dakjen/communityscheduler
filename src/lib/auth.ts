@@ -43,4 +43,5 @@ export async function setSession(token: string) {
 export async function clearSession() {
   const cookieStore = await cookies();
   cookieStore.delete('session');
+  cookieStore.set('session', '', { maxAge: 0, path: '/' });
 }

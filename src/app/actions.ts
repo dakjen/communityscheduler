@@ -492,3 +492,16 @@ export async function updateProfile(data: { fullName: string; email: string; bio
     revalidatePath('/admin');
     return { success: true };
 }
+
+export async function updateAppointmentStatus(id: number, status: 'confirmed' | 'rejected') {
+    const session = await getSession();
+    if (!session) throw new Error('Unauthorized');
+
+    await db.update(appointmentRequests)
+        .set({ status })
+        .where(eq(appointmentRequests.id, id))
+        .execute();
+
+    revalidatePath('/admin');
+    return { success: true };
+}

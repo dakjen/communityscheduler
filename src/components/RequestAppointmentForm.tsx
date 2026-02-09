@@ -45,7 +45,15 @@ export function RequestAppointmentForm({ staffMembers }: { staffMembers: StaffMe
         try {
             const schedule = JSON.parse(staff.officeHours);
             const dayName = format(date, 'EEEE'); // e.g., "Monday"
-            const rawSlots = schedule[dayName] || []; // ["09:00", "09:30"]
+            const dateKey = format(date, 'yyyy-MM-dd'); // e.g., "2023-10-27"
+            
+            // Check for specific date override first
+            let rawSlots = schedule[dateKey];
+            
+            // If not found, use default day schedule
+            if (rawSlots === undefined) {
+                rawSlots = schedule[dayName] || [];
+            }
             
             // Sort raw slots
             const sorted = rawSlots.sort();
