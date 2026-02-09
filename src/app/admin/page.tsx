@@ -30,12 +30,11 @@ export default async function AdminPage() {
 
         return (
             <main className="min-h-screen bg-slate-50 p-4 md:p-8">
-                {/* ... Staff Portal Content ... */}
                 <div className="max-w-5xl mx-auto space-y-8">
                     <header className="flex justify-between items-center pb-6 border-b">
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight text-slate-900">Staff Portal</h1>
-                            <p className="text-slate-500">Welcome back, {session?.username}</p>
+                            <p className="text-slate-500">Welcome back, {staffMember?.fullName || session?.username}</p>
                         </div>
                         <div className="flex items-center gap-4">
                             <Link href="/">
@@ -77,6 +76,11 @@ export default async function AdminPage() {
 
     // Admin View - Strictly check for 'admin' role
     if (role === 'admin') {
+        // Fetch current admin details for display
+        const currentAdmin = await db.query.admins.findFirst({
+            where: eq(admins.id, session.id)
+        });
+
         // Admin Data
         const bookings = await getAllBookings();
         const rooms = await getRooms();
@@ -89,7 +93,7 @@ export default async function AdminPage() {
                     <header className="flex justify-between items-center pb-6 border-b">
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight text-slate-900">Admin Dashboard</h1>
-                            <p className="text-slate-500">Welcome back, Admin</p>
+                            <p className="text-slate-500">Welcome back, {currentAdmin?.fullName || session?.username}</p>
                         </div>
                         <div className="flex items-center gap-4">
                             <Link href="/">
