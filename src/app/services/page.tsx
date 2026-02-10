@@ -70,7 +70,8 @@ function formatRange(start: string, end: string) {
 }
 
 export default async function ServicesPage() {
-  const staffMembers = await getStaffHours();
+  const allStaff = await getStaffHours();
+  const staffMembers = allStaff.filter(staff => staff.role === 'HTH');
 
   const services = [
     {

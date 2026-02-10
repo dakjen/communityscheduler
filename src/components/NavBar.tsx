@@ -26,10 +26,10 @@ export function NavBar({
       </div>
       <div className="flex gap-4 items-center">
         <Link href="/">
-          <Button variant={pathname === '/' ? 'secondary' : 'ghost'}>Scheduling</Button>
+          <Button variant={pathname === '/' ? 'secondary' : 'ghost'}>Book a Room</Button>
         </Link>
         <Link href="/services">
-          <Button variant={pathname === '/services' ? 'secondary' : 'ghost'}>Services</Button>
+          <Button variant={pathname === '/services' ? 'secondary' : 'ghost'}>Book a Service</Button>
         </Link>
         <SignedOut>
           <SignInButton mode="modal">

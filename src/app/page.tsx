@@ -20,6 +20,10 @@ export default async function Home() {
             description="Book a room for your event or meeting" 
         />
 
+        <p className="text-lg text-center text-gray-700 mt-4">
+          This platform allows you to conveniently book rooms within the PCC Building. Browse available rooms, book entreprenuership services, and reserve your space for meetings or events.
+        </p>
+
         <Tabs defaultValue="book">
             <TabsList className="grid w-full grid-cols-2 mb-8 max-w-xl">
                 <TabsTrigger value="book">Book a Room</TabsTrigger>
