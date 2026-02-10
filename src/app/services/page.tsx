@@ -185,6 +185,7 @@ export default async function ServicesPage() {
 
                     <section>
                         <h2 className="text-2xl font-semibold mb-4">Request Appointment</h2>
+                        <p className="text-muted-foreground mb-4">Bookings can be a maximum of 60 minutes.</p>
                         <div className="w-full">
                             <RequestAppointmentForm staffMembers={staffMembers} />
                         </div>

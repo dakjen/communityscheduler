@@ -239,6 +239,14 @@ export async function createBooking(data: {
   const openTotal = openHour * 60 + openMinute;
   const closeTotal = closeHour * 60 + closeMinute;
 
+  // Calculate duration in hours
+  const durationMs = data.endTime.getTime() - data.startTime.getTime();
+  const durationHours = durationMs / (1000 * 60 * 60);
+
+  if (durationHours > 3) {
+    throw new Error('Maximum booking duration is 3 hours.');
+  }
+
   if (startTotal < openTotal || endTotal > closeTotal) {
     throw new Error(`Bookings for ${room.name} must be between ${room.openTime} and ${room.closeTime}.`);
   }
