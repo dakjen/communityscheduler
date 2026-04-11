@@ -7,6 +7,12 @@ const isAdminRoute = createRouteMatcher(['/admin(.*)']);
 export default clerkMiddleware(async (auth, req) => {
   // 1. Custom Admin Logic
   if (isAdminRoute(req)) {
+     // Skip auth check for server action POSTs (they handle auth internally)
+     const isServerAction = req.method === 'POST' && req.headers.get('next-action');
+     if (isServerAction) {
+         return NextResponse.next();
+     }
+
      const cookie = req.cookies.get('session')?.value;
      const session = cookie ? await verifySession(cookie) : null;
      if (!session) {
