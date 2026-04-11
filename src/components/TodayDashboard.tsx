@@ -1,7 +1,31 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, isToday, parseISO } from 'date-fns';
+
+const SERVICES = [
+    {
+        title: 'Public Computer Access',
+        description: 'Free access to computers with internet and basic software.',
+    },
+    {
+        title: 'Printing & Copying',
+        description: 'Black & white printing available for small fees.',
+    },
+    {
+        title: 'Entrepreneurship & Small Business Support',
+        description: 'Meet with our Services staff for support and guidance.',
+    },
+    {
+        title: 'Employment Clinical Services',
+        description: 'Resume assistance, job search support, and career counseling.',
+    },
+    {
+        title: 'Room Booking',
+        description: 'Book a room for your event or meeting at the PCC Building.',
+    },
+];
 
 type Booking = {
     id: number;
@@ -90,6 +114,15 @@ export default function TodayDashboard({
     bookings: Booking[];
     staff: StaffMember[];
 }) {
+    const [activeService, setActiveService] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setActiveService((prev) => (prev + 1) % SERVICES.length);
+        }, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
     const today = new Date();
     const todayStr = format(today, 'EEEE, MMMM d, yyyy');
 
@@ -124,6 +157,27 @@ export default function TodayDashboard({
             <div className="text-center py-4">
                 <h1 className="text-5xl font-bold tracking-tight text-gray-900">{todayStr}</h1>
                 <p className="text-xl text-gray-500 mt-2 font-medium">Today&apos;s Schedule</p>
+            </div>
+
+            {/* Services Banner */}
+            <div className="bg-gray-900 rounded-xl p-6 text-white overflow-hidden">
+                <div className="flex items-center justify-between">
+                    <div className="min-w-0">
+                        <p className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-1">Our Services</p>
+                        <h3 className="text-2xl font-bold transition-all duration-500">{SERVICES[activeService].title}</h3>
+                        <p className="text-base text-gray-300 mt-1 transition-all duration-500">{SERVICES[activeService].description}</p>
+                    </div>
+                    <div className="flex gap-1.5 ml-6 shrink-0">
+                        {SERVICES.map((_, i) => (
+                            <div
+                                key={i}
+                                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                                    i === activeService ? 'bg-white w-6' : 'bg-gray-600'
+                                }`}
+                            />
+                        ))}
+                    </div>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
