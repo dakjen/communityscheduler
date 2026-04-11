@@ -69,9 +69,71 @@ function formatRange(start: string, end: string) {
     return `${format(d1, 'h:mm a')} - ${format(d3, 'h:mm a')}`;
 }
 
+function StaffSection({ staffMembers }: { staffMembers: any[] }) {
+    return (
+        <div className="grid gap-6 grid-cols-1">
+            {staffMembers.length === 0 ? (
+                <div className="col-span-full">
+                    <Card>
+                        <CardContent className="p-8 text-center text-muted-foreground">
+                            No staff office hours posted yet.
+                        </CardContent>
+                    </Card>
+                </div>
+            ) : (
+                staffMembers.map((staff) => {
+                    let schedule: Record<string, string[]> = {};
+                    try {
+                        if (staff.officeHours && staff.officeHours.startsWith('{')) {
+                            schedule = JSON.parse(staff.officeHours);
+                        }
+                    } catch (e) {}
+
+                    const formattedSchedule = formatSchedule(schedule);
+
+                    if (formattedSchedule.length === 0) return null;
+
+                    return (
+                        <Fragment key={staff.username}>
+                            <Card className="h-full">
+                                <CardHeader>
+                                    <CardTitle>{staff.fullName || staff.username}</CardTitle>
+                                    {staff.serviceType && (
+                                        <p className="text-sm font-medium text-primary pt-1">{staff.serviceType}</p>
+                                    )}
+                                    {staff.bio && (
+                                        <p className="text-sm text-muted-foreground font-medium pt-1 italic">
+                                            Ask me about: <span className="text-foreground">{staff.bio}</span>
+                                        </p>
+                                    )}
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-4">
+                                        {formattedSchedule.map(({ day, ranges }: { day: string; ranges: string[] }) => (
+                                            <div key={day}>
+                                                <h4 className="font-semibold text-sm text-primary mb-1">{day}</h4>
+                                                <ul className="text-sm text-gray-600 space-y-1">
+                                                    {ranges.map((range: string, i: number) => (
+                                                        <li key={i}>{range}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </Fragment>
+                    );
+                })
+            )}
+        </div>
+    );
+}
+
 export default async function ServicesPage() {
   const allStaff = await getStaffHours();
-  const staffMembers = allStaff.filter(staff => staff.role === 'HTH');
+  const entrepreneurshipStaff = allStaff.filter(staff => staff.role === 'HTH' && staff.serviceType === 'Entrepreneurship');
+  const employmentStaff = allStaff.filter(staff => staff.role === 'HTH' && staff.serviceType === 'Employment Services');
 
   const services = [
     {
@@ -88,27 +150,33 @@ export default async function ServicesPage() {
       title: "Entrepreneurship & Small Business Support",
       description: "Meet with our Services staff for support and guidance",
       hours: "By Appointment"
+    },
+    {
+      title: "Employment Clinical Services",
+      description: "Resume assistance, job search support, and career counseling.",
+      hours: "By Appointment"
     }
   ];
 
   return (
     <main className="min-h-screen bg-white p-4 md:p-8 flex flex-col">
       <div className="max-w-6xl mx-auto space-y-8 flex-grow w-full">
-        <NavBar 
-            title="Community Services" 
-            description="Explore what we offer at the PCC Building" 
+        <NavBar
+            title="Community Services"
+            description="Explore what we offer at the PCC Building"
         />
 
         <Tabs defaultValue="amenities" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8 max-w-xl">
+            <TabsList className="grid w-full grid-cols-3 mb-8 max-w-xl">
                 <TabsTrigger value="amenities">Amenities</TabsTrigger>
                 <TabsTrigger value="entrepreneurship">Entrepreneurship</TabsTrigger>
+                <TabsTrigger value="employment">Employment Services</TabsTrigger>
             </TabsList>
 
             <TabsContent value="amenities">
                 <section>
                     <h2 className="text-2xl font-semibold mb-4">Building Amenities</h2>
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-6 md:grid-cols-2">
                     {services.map((service, index) => (
                         <Card key={index}>
                         <CardHeader>
@@ -127,77 +195,39 @@ export default async function ServicesPage() {
             <TabsContent value="entrepreneurship">
                 <div className="space-y-8">
                     <section>
-                        <h2 className="text-2xl font-semibold mb-4">Staff Office Hours</h2>
-                        <div className="grid gap-6 grid-cols-1">
-                            {staffMembers.length === 0 ? (
-                                <div className="col-span-full">
-                                    <Card>
-                                        <CardContent className="p-8 text-center text-muted-foreground">
-                                            No staff office hours posted yet.
-                                        </CardContent>
-                                    </Card>
-                                </div>
-                            ) : (
-                                staffMembers.map((staff) => {
-                                    let schedule: Record<string, string[]> = {};
-                                    try {
-                                        if (staff.officeHours && staff.officeHours.startsWith('{')) {
-                                            schedule = JSON.parse(staff.officeHours);
-                                        }
-                                    } catch (e) {}
-
-                                    const formattedSchedule = formatSchedule(schedule);
-
-                                    if (formattedSchedule.length === 0) return null;
-
-                                    return (
-                                        <Fragment key={staff.username}>
-                                            <Card className="h-full">
-                                                <CardHeader>
-                                                    <CardTitle>{staff.fullName || staff.username}</CardTitle>
-                                                    {(staff as any).serviceType && (
-                                                        <p className="text-sm font-medium text-primary pt-1">{(staff as any).serviceType}</p>
-                                                    )}
-                                                    {staff.bio && (
-                                                        <p className="text-sm text-muted-foreground font-medium pt-1 italic">
-                                                            Ask me about: <span className="text-foreground">{staff.bio}</span>
-                                                        </p>
-                                                    )}
-                                                </CardHeader>
-                                                <CardContent>
-                                                    <div className="space-y-4">
-                                                        {formattedSchedule.map(({ day, ranges }) => (
-                                                            <div key={day}>
-                                                                <h4 className="font-semibold text-sm text-primary mb-1">{day}</h4>
-                                                                <ul className="text-sm text-gray-600 space-y-1">
-                                                                    {ranges.map((range, i) => (
-                                                                        <li key={i}>{range}</li>
-                                                                    ))}
-                                                                </ul>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        </Fragment>
-                                    );
-                                })
-                            )}
-                        </div>
+                        <h2 className="text-2xl font-semibold mb-4">Entrepreneurship Staff</h2>
+                        <StaffSection staffMembers={entrepreneurshipStaff} />
                     </section>
 
                     <section>
                         <h2 className="text-2xl font-semibold mb-4">Request Appointment</h2>
                         <p className="text-muted-foreground mb-4">Bookings can be a maximum of 60 minutes.</p>
                         <div className="w-full">
-                            <RequestAppointmentForm staffMembers={staffMembers} />
+                            <RequestAppointmentForm staffMembers={entrepreneurshipStaff} />
+                        </div>
+                    </section>
+                </div>
+            </TabsContent>
+
+            <TabsContent value="employment">
+                <div className="space-y-8">
+                    <section>
+                        <h2 className="text-2xl font-semibold mb-4">Employment Services Staff</h2>
+                        <StaffSection staffMembers={employmentStaff} />
+                    </section>
+
+                    <section>
+                        <h2 className="text-2xl font-semibold mb-4">Request Appointment</h2>
+                        <p className="text-muted-foreground mb-4">Bookings can be a maximum of 60 minutes.</p>
+                        <div className="w-full">
+                            <RequestAppointmentForm staffMembers={employmentStaff} />
                         </div>
                     </section>
                 </div>
             </TabsContent>
         </Tabs>
       </div>
-      
+
       <footer className="mt-12 py-6 border-t border-secondary text-center">
         <Link href="/admin">
             <Button variant="ghost" size="sm" className="text-muted-foreground">Admin Login</Button>

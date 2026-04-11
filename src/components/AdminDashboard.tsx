@@ -477,11 +477,16 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                 {newAdmin.role === 'HTH' && (
                                     <div className="space-y-2">
                                         <Label>Service Type</Label>
-                                        <Input
-                                            placeholder="e.g. Business Consulting, Tax Prep"
-                                            value={newAdmin.serviceType}
-                                            onChange={e => setNewAdmin({...newAdmin, serviceType: e.target.value})}
-                                        />
+                                        <Select value={newAdmin.serviceType} onValueChange={(val) => setNewAdmin({...newAdmin, serviceType: val})}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select service type" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Entrepreneurship">Entrepreneurship</SelectItem>
+                                                <SelectItem value="Employment Services">Employment Services</SelectItem>
+                                                <SelectItem value="Other">Other</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 )}
                                 <div className="col-span-2 pt-2">
@@ -556,11 +561,16 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                                             {editingAdmin.role === 'HTH' && (
                                                                 <div className="space-y-2">
                                                                     <Label>Service Type</Label>
-                                                                    <Input
-                                                                        placeholder="e.g. Business Consulting, Tax Prep"
-                                                                        value={(editingAdmin as any).serviceType || ''}
-                                                                        onChange={e => setEditingAdmin({...editingAdmin, serviceType: e.target.value} as any)}
-                                                                    />
+                                                                    <Select value={(editingAdmin as any).serviceType || ''} onValueChange={(val) => setEditingAdmin({...editingAdmin, serviceType: val} as any)}>
+                                                                        <SelectTrigger>
+                                                                            <SelectValue placeholder="Select service type" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            <SelectItem value="Entrepreneurship">Entrepreneurship</SelectItem>
+                                                                            <SelectItem value="Employment Services">Employment Services</SelectItem>
+                                                                            <SelectItem value="Other">Other</SelectItem>
+                                                                        </SelectContent>
+                                                                    </Select>
                                                                 </div>
                                                             )}
                                                             <Button type="submit" className="w-full">Save Changes</Button>

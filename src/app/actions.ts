@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { compare, hash } from 'bcryptjs';
 import { getSession, signSession, setSession, clearSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { sendBookingConfirmation, sendStaffNotification } from '@/lib/email';
 
 // --- Admin User Management Actions ---
 
@@ -274,6 +275,16 @@ export async function createBooking(data: {
     status: 'pending',
   }).execute();
 
+  // Send booking confirmation email to customer
+  sendBookingConfirmation({
+    customerName: data.customerName,
+    customerEmail: data.customerEmail,
+    purpose: data.purpose,
+    startTime: data.startTime,
+    endTime: data.endTime,
+    roomName: room.name,
+  });
+
   revalidatePath('/');
   revalidatePath('/admin');
   return { success: true };
@@ -448,6 +459,23 @@ export async function submitAppointmentRequest(data: {
         reason: data.reason,
         preferredStaffUsername: data.preferredStaffUsername,
     }).execute();
+
+    // Send notification to the staff member if one was selected
+    if (data.preferredStaffUsername) {
+        const staffMember = await db.query.admins.findFirst({
+            where: eq(admins.username, data.preferredStaffUsername),
+        });
+        if (staffMember?.email) {
+            sendStaffNotification({
+                staffEmail: staffMember.email,
+                clientName: data.customerName,
+                clientEmail: data.customerEmail,
+                purpose: data.reason,
+                date: data.preferredDate,
+                time: data.preferredTime,
+            });
+        }
+    }
 
     revalidatePath('/services');
     revalidatePath('/admin');
