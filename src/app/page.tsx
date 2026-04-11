@@ -1,6 +1,7 @@
-import { getRooms, getAllBookings } from './actions';
+import { getRooms, getAllBookings, getStaffHours } from './actions';
 import BookingInterface from '@/components/BookingInterface';
 import PublicBookings from '@/components/PublicBookings';
+import TodayDashboard from '@/components/TodayDashboard';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,24 +12,30 @@ export const dynamic = 'force-dynamic';
 export default async function Home() {
   const rooms = await getRooms();
   const bookings = await getAllBookings();
+  const staff = await getStaffHours();
 
   return (
     <main className="min-h-screen bg-white p-4 md:p-8 flex flex-col">
       <div className="max-w-6xl mx-auto space-y-8 flex-grow w-full">
-        <NavBar 
-            title="Welcome to the PCC Building Room Scheduler" 
-            description="Book a room for your event or meeting" 
+        <NavBar
+            title="Welcome to the PCC Building Room Scheduler"
+            description="Book a room for your event or meeting"
         />
 
         <p className="text-lg text-center text-gray-700 mt-4">
           This platform allows you to conveniently book rooms within the PCC Building. Browse available rooms, book entreprenuership services, and reserve your space for meetings or events.
         </p>
 
-        <Tabs defaultValue="book">
-            <TabsList className="grid w-full grid-cols-2 mb-8 max-w-xl">
+        <Tabs defaultValue="dashboard">
+            <TabsList className="grid w-full grid-cols-3 mb-8 max-w-xl">
+                <TabsTrigger value="dashboard">Today</TabsTrigger>
                 <TabsTrigger value="book">Book a Room</TabsTrigger>
                 <TabsTrigger value="bookings">Current Bookings</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="dashboard">
+                <TodayDashboard rooms={rooms} bookings={bookings} staff={staff} />
+            </TabsContent>
 
             <TabsContent value="book">
                 <BookingInterface rooms={rooms} />

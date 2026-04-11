@@ -86,7 +86,7 @@ export default async function ServicesPage() {
     },
     {
       title: "Entrepreneurship & Small Business Support",
-      description: "Meet with our HTH Business Support Staff to Heighten Your Hustle",
+      description: "Meet with our Services staff for support and guidance",
       hours: "By Appointment"
     }
   ];
@@ -155,6 +155,9 @@ export default async function ServicesPage() {
                                             <Card className="h-full">
                                                 <CardHeader>
                                                     <CardTitle>{staff.fullName || staff.username}</CardTitle>
+                                                    {(staff as any).serviceType && (
+                                                        <p className="text-sm font-medium text-primary pt-1">{(staff as any).serviceType}</p>
+                                                    )}
                                                     {staff.bio && (
                                                         <p className="text-sm text-muted-foreground font-medium pt-1 italic">
                                                             Ask me about: <span className="text-foreground">{staff.bio}</span>

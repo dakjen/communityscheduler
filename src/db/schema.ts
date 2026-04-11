@@ -40,6 +40,7 @@ export const admins = pgTable('admins', {
   status: varchar('status', { enum: ['pending', 'active', 'rejected'] }).default('pending').notNull(),
   officeHours: text('office_hours'), // JSON string for individual schedule
   bio: text('bio'), // "What you can ask me about"
+  serviceType: varchar('service_type', { length: 256 }), // e.g. "Business Consulting", "Tax Prep"
 });
 
 export const appointmentRequests = pgTable('appointment_requests', {

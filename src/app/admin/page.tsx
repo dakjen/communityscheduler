@@ -19,7 +19,7 @@ export default async function AdminPage() {
     
     const role = session.role;
 
-    // Staff / HTH View
+    // Staff / Services View
     if (role === 'staff' || role === 'HTH') {
         const staffMember = await db.query.admins.findFirst({
             where: eq(admins.id, session.id)

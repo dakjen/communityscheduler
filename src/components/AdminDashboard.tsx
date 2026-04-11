@@ -25,10 +25,10 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
     const [editingRoom, setEditingRoom] = useState<Room | null>(null);
     const [isEditRoomOpen, setIsEditRoomOpen] = useState(false);
     
-    const [newAdmin, setNewAdmin] = useState({ username: '', password: '', fullName: '', email: '', role: 'admin' });
+    const [newAdmin, setNewAdmin] = useState({ username: '', password: '', fullName: '', email: '', role: 'admin', serviceType: '' });
     const [editingAdmin, setEditingAdmin] = useState<Admin & { password?: string } | null>(null);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-    const [requestRoles, setRequestRoles] = useState<Record<number, 'admin' | 'staff' | 'HTH'>>({}); // Track selected roles for requests
+    const [requestRoles, setRequestRoles] = useState<Record<number, 'admin' | 'staff' | 'HTH'>>({});
 
     // Filter admins based on status
     const activeAdmins = admins.filter(admin => admin.status === 'active');
@@ -113,7 +113,7 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
         e.preventDefault();
         try {
             await createAdmin(newAdmin as any);
-            setNewAdmin({ username: '', password: '', fullName: '', email: '', role: 'admin' });
+            setNewAdmin({ username: '', password: '', fullName: '', email: '', role: 'admin', serviceType: '' });
             toast.success('User created');
         } catch (e: any) {
             toast.error(e.message || 'Failed to create user');
@@ -128,7 +128,8 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                 id: editingAdmin.id,
                 fullName: editingAdmin.fullName || '',
                 email: editingAdmin.email || '',
-                password: editingAdmin.password
+                password: editingAdmin.password,
+                serviceType: (editingAdmin as any).serviceType || '',
             });
             setIsEditDialogOpen(false);
             setEditingAdmin(null);
@@ -469,10 +470,20 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                         <SelectContent>
                                             <SelectItem value="admin">Admin</SelectItem>
                                             <SelectItem value="staff">Staff</SelectItem>
-                                            <SelectItem value="HTH">HTH</SelectItem>
+                                            <SelectItem value="HTH">Services</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                {newAdmin.role === 'HTH' && (
+                                    <div className="space-y-2">
+                                        <Label>Service Type</Label>
+                                        <Input
+                                            placeholder="e.g. Business Consulting, Tax Prep"
+                                            value={newAdmin.serviceType}
+                                            onChange={e => setNewAdmin({...newAdmin, serviceType: e.target.value})}
+                                        />
+                                    </div>
+                                )}
                                 <div className="col-span-2 pt-2">
                                     <Button type="submit" className="w-full"><UserPlus className="h-4 w-4 mr-2"/> Create User</Button>
                                 </div>
@@ -494,7 +505,7 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                             </div>
                                             <div>
                                                 <h4 className="font-medium">{admin.fullName} <span className="text-slate-400 text-sm">(@{admin.username})</span></h4>
-                                                <p className="text-xs text-muted-foreground">{admin.email} • <span className="uppercase font-bold text-primary">{admin.role}</span></p>
+                                                <p className="text-xs text-muted-foreground">{admin.email} • <span className="uppercase font-bold text-primary">{admin.role === 'HTH' ? 'SERVICES' : admin.role}</span>{admin.role === 'HTH' && (admin as any).serviceType ? ` • ${(admin as any).serviceType}` : ''}</p>
                                             </div>
                                         </div>
                                         <div className="flex gap-2">
@@ -535,13 +546,23 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                                             </div>
                                                             <div className="space-y-2">
                                                                 <Label>New Password (Optional)</Label>
-                                                                <Input 
+                                                                <Input
                                                                     type="password"
                                                                     placeholder="Leave blank to keep current"
-                                                                    value={editingAdmin.password || ''} 
+                                                                    value={editingAdmin.password || ''}
                                                                     onChange={e => setEditingAdmin({...editingAdmin, password: e.target.value})}
                                                                 />
                                                             </div>
+                                                            {editingAdmin.role === 'HTH' && (
+                                                                <div className="space-y-2">
+                                                                    <Label>Service Type</Label>
+                                                                    <Input
+                                                                        placeholder="e.g. Business Consulting, Tax Prep"
+                                                                        value={(editingAdmin as any).serviceType || ''}
+                                                                        onChange={e => setEditingAdmin({...editingAdmin, serviceType: e.target.value} as any)}
+                                                                    />
+                                                                </div>
+                                                            )}
                                                             <Button type="submit" className="w-full">Save Changes</Button>
                                                         </form>
                                                     )}
@@ -596,7 +617,7 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                                         <SelectContent>
                                                             <SelectItem value="admin">Admin</SelectItem>
                                                             <SelectItem value="staff">Staff</SelectItem>
-                                                            <SelectItem value="HTH">HTH</SelectItem>
+                                                            <SelectItem value="HTH">Services</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                 </div>

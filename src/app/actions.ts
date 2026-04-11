@@ -18,21 +18,22 @@ export async function getAdmins() {
     email: admins.email,
     role: admins.role,
     status: admins.status,
+    serviceType: admins.serviceType,
   }).from(admins).execute();
 }
 
-export async function createAdmin(data: { username: string; password: string; fullName: string; email: string; role: 'admin' | 'staff' | 'HTH'; status?: 'pending' | 'active' | 'rejected' }) {
+export async function createAdmin(data: { username: string; password: string; fullName: string; email: string; role: 'admin' | 'staff' | 'HTH'; status?: 'pending' | 'active' | 'rejected'; serviceType?: string }) {
   const normalizedUsername = data.username.toLowerCase();
   const existing = await db.query.admins.findFirst({
     where: eq(admins.username, normalizedUsername)
   });
-  
+
   if (existing) {
     throw new Error('Username already taken.');
   }
 
   const hashedPassword = await hash(data.password, 10);
-  
+
   await db.insert(admins).values({
     username: normalizedUsername,
     password: hashedPassword,
@@ -40,6 +41,7 @@ export async function createAdmin(data: { username: string; password: string; fu
     email: data.email,
     role: data.role,
     status: data.status || 'pending',
+    serviceType: data.serviceType || null,
   }).execute();
 
   revalidatePath('/admin');
@@ -90,7 +92,7 @@ export async function rejectAdmin(id: number) {
   revalidatePath('/admin');
 }
 
-export async function updateAdmin(data: { id: number; fullName: string; email: string; password?: string; role?: 'admin' | 'staff' | 'HTH' }) {
+export async function updateAdmin(data: { id: number; fullName: string; email: string; password?: string; role?: 'admin' | 'staff' | 'HTH'; serviceType?: string }) {
   const updateData: any = {
     fullName: data.fullName,
     email: data.email,
@@ -98,6 +100,10 @@ export async function updateAdmin(data: { id: number; fullName: string; email: s
 
   if (data.role) {
       updateData.role = data.role;
+  }
+
+  if (data.serviceType !== undefined) {
+      updateData.serviceType = data.serviceType || null;
   }
 
   if (data.password && data.password.trim() !== '') {
@@ -386,7 +392,8 @@ export async function getStaffHours() {
         fullName: admins.fullName,
         officeHours: admins.officeHours,
         bio: admins.bio,
-        role: admins.role, // Added role to selection
+        role: admins.role,
+        serviceType: admins.serviceType,
     })
     .from(admins)
     .where(or(eq(admins.role, 'staff'), eq(admins.role, 'HTH')))
@@ -399,6 +406,7 @@ export async function getHTHStaff() {
         fullName: admins.fullName,
         officeHours: admins.officeHours,
         bio: admins.bio,
+        serviceType: admins.serviceType,
     })
     .from(admins)
     .where(eq(admins.role, 'HTH'))
