@@ -338,6 +338,9 @@ export async function createRoom(formData: FormData) {
   let imageUrl: string | null = null;
 
   if (imageFile && imageFile.size > 0) {
+    if (imageFile.size > 4 * 1024 * 1024) {
+      throw new Error('Image must be under 4MB.');
+    }
     const bytes = await imageFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const mimeType = imageFile.type || 'image/jpeg';
@@ -376,6 +379,9 @@ export async function updateRoom(formData: FormData) {
   };
 
   if (imageFile && imageFile.size > 0) {
+    if (imageFile.size > 4 * 1024 * 1024) {
+      throw new Error('Image must be under 4MB.');
+    }
     const bytes = await imageFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const mimeType = imageFile.type || 'image/jpeg';

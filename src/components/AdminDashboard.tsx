@@ -287,6 +287,7 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                     <div className="space-y-2 flex-1">
                                         <Label>Image (Optional)</Label>
                                         <Input id="room-image" type="file" accept="image/*" />
+                                        <p className="text-xs text-muted-foreground">Max file size: 4MB</p>
                                     </div>
                                 </div>
                                 <Button type="submit"><Plus className="h-4 w-4 mr-2"/> Add Room</Button>
@@ -389,6 +390,7 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                                             <div className="space-y-2">
                                                                 <Label>New Image (Optional)</Label>
                                                                 <Input id="edit-room-image" type="file" accept="image/*" />
+                                                                <p className="text-xs text-muted-foreground">Max file size: 4MB</p>
                                                             </div>
                                                             <Button type="submit" className="w-full">Save Changes</Button>
                                                         </form>
