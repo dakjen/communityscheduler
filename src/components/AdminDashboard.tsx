@@ -20,6 +20,46 @@ import AppointmentRequests from '@/components/AppointmentRequests';
 
 // ... (existing types)
 
+async function compressImage(file: File, maxSizeMB = 1): Promise<File> {
+    return new Promise((resolve) => {
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let { width, height } = img;
+
+                // Scale down if too large
+                const maxDim = 1200;
+                if (width > maxDim || height > maxDim) {
+                    const ratio = Math.min(maxDim / width, maxDim / height);
+                    width = Math.round(width * ratio);
+                    height = Math.round(height * ratio);
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d')!;
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob(
+                    (blob) => {
+                        if (blob) {
+                            resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+                        } else {
+                            resolve(file);
+                        }
+                    },
+                    'image/jpeg',
+                    0.7
+                );
+            };
+            img.src = e.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
 export default function AdminDashboard({ bookings, rooms, admins, appointmentRequests = [] }: { bookings: Booking[], rooms: Room[], admins: Admin[], appointmentRequests?: any[] }) {
     const [newRoom, setNewRoom] = useState({ name: '', capacity: '', description: '', openTime: '09:00', closeTime: '17:00' });
     const [editingRoom, setEditingRoom] = useState<Room | null>(null);
@@ -56,10 +96,11 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
             formData.append('openTime', newRoom.openTime);
             formData.append('closeTime', newRoom.closeTime);
             
-            // Get file input
+            // Get file input and compress
             const fileInput = document.getElementById('room-image') as HTMLInputElement;
             if (fileInput && fileInput.files && fileInput.files[0]) {
-                formData.append('image', fileInput.files[0]);
+                const compressed = await compressImage(fileInput.files[0]);
+                formData.append('image', compressed);
             }
 
             await createRoom(formData);
@@ -83,10 +124,11 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
             formData.append('openTime', editingRoom.openTime);
             formData.append('closeTime', editingRoom.closeTime);
             
-            // Get file input
+            // Get file input and compress
             const fileInput = document.getElementById('edit-room-image') as HTMLInputElement;
             if (fileInput && fileInput.files && fileInput.files[0]) {
-                formData.append('image', fileInput.files[0]);
+                const compressed = await compressImage(fileInput.files[0]);
+                formData.append('image', compressed);
             }
 
             await updateRoom(formData);
