@@ -17,7 +17,7 @@ export function NavBar({
   const pathname = usePathname();
 
   return (
-    <header className="flex justify-between items-center pb-6 border-b border-secondary">
+    <header className="flex justify-between items-center pb-3 border-b border-secondary">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-primary">
           {title}

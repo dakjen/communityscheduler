@@ -16,19 +16,15 @@ export default async function Home() {
   const todaysPrograms = await getTodaysPrograms();
 
   return (
-    <main className="min-h-screen bg-white p-4 md:p-8 flex flex-col">
-      <div className="max-w-6xl mx-auto space-y-8 flex-grow w-full">
+    <main className="min-h-screen bg-white p-4 md:p-6 flex flex-col">
+      <div className="max-w-6xl mx-auto space-y-4 flex-grow w-full">
         <NavBar
-            title="Welcome to the PCC Building Room Scheduler"
-            description="Book a room for your event or meeting"
+            title="PCC Building Room Scheduler"
+            description="Browse rooms, book services, and reserve your space"
         />
 
-        <p className="text-lg text-center text-gray-700 mt-4">
-          This platform allows you to conveniently book rooms within the PCC Building. Browse available rooms, book entreprenuership services, and reserve your space for meetings or events.
-        </p>
-
         <Tabs defaultValue="dashboard">
-            <TabsList className="grid w-full grid-cols-3 mb-8 max-w-xl">
+            <TabsList className="grid w-full grid-cols-3 mb-4 max-w-xl">
                 <TabsTrigger value="dashboard">Today</TabsTrigger>
                 <TabsTrigger value="book">Book a Room</TabsTrigger>
                 <TabsTrigger value="bookings">Current Bookings</TabsTrigger>

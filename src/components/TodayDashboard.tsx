@@ -170,9 +170,9 @@ export default function TodayDashboard({
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="text-center py-3">
-                <h1 className="text-3xl font-semibold tracking-tight text-gray-800">{todayStr}</h1>
-                <p className="text-base text-gray-400 mt-1">Today&apos;s Schedule</p>
+            <div className="text-center py-1">
+                <h1 className="text-2xl font-semibold tracking-tight text-gray-800">{todayStr}</h1>
+                <p className="text-sm text-gray-400">Today&apos;s Schedule</p>
             </div>
 
             {/* Services Banner */}
