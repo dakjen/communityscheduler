@@ -201,7 +201,7 @@ export default function TodayDashboard({
                 <Card className="border">
                     <CardHeader className="pb-3 border-b">
                         <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                            <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
+                            <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#b00d0f' }} />
                             Room Bookings
                         </CardTitle>
                     </CardHeader>
@@ -258,7 +258,7 @@ export default function TodayDashboard({
                 <Card className="border">
                     <CardHeader className="pb-3 border-b">
                         <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                            <span className="inline-block w-3 h-3 rounded-full bg-emerald-500" />
+                            <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#431e1e' }} />
                             Staff Available
                         </CardTitle>
                     </CardHeader>
@@ -297,7 +297,7 @@ export default function TodayDashboard({
                 <Card className="border">
                     <CardHeader className="pb-3 border-b">
                         <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                            <span className="inline-block w-3 h-3 rounded-full bg-purple-500" />
+                            <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#3b3b3b' }} />
                             Programming
                         </CardTitle>
                     </CardHeader>
