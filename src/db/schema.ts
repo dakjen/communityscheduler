@@ -43,6 +43,18 @@ export const admins = pgTable('admins', {
   serviceType: varchar('service_type', { length: 256 }), // e.g. "Business Consulting", "Tax Prep"
 });
 
+export const programs = pgTable('programs', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 256 }).notNull(),
+  responsibleParty: varchar('responsible_party', { length: 256 }).notNull(),
+  date: varchar('date', { length: 50 }).notNull(), // yyyy-MM-dd or empty if recurring-only
+  time: varchar('time', { length: 50 }).notNull(), // HH:mm
+  isRecurring: boolean('is_recurring').default(false).notNull(),
+  recurrencePattern: text('recurrence_pattern'), // JSON: { frequency: 'daily'|'weekly'|'monthly', daysOfWeek?: number[], endDate?: string }
+  attendees: varchar('attendees', { length: 256 }).notNull(), // e.g. "Staff", "HTH", "Staff, HTH", "All"
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 export const appointmentRequests = pgTable('appointment_requests', {
   id: serial('id').primaryKey(),
   customerName: varchar('customer_name', { length: 256 }).notNull(),

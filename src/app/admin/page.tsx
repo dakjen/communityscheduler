@@ -1,4 +1,4 @@
-import { getAllBookings, getRooms, getSettings, getAdmins, logout, getAppointmentRequests, getAllAppointmentRequests } from '@/app/actions';
+import { getAllBookings, getRooms, getSettings, getAdmins, logout, getAppointmentRequests, getAllAppointmentRequests, getPrograms } from '@/app/actions';
 import AdminDashboard from '@/components/AdminDashboard';
 import StaffDashboard from '@/components/StaffDashboard';
 import AppointmentRequests from '@/components/AppointmentRequests';
@@ -86,6 +86,7 @@ export default async function AdminPage() {
         const rooms = await getRooms();
         const adminUsers = await getAdmins();
         const allAppointmentRequests = await getAllAppointmentRequests();
+        const allPrograms = await getPrograms();
 
         return (
             <main className="min-h-screen bg-slate-50 p-4 md:p-8">
@@ -111,11 +112,12 @@ export default async function AdminPage() {
                         </div>
                     </header>
 
-                    <AdminDashboard 
-                        bookings={bookings} 
+                    <AdminDashboard
+                        bookings={bookings}
                         rooms={rooms}
                         admins={adminUsers}
                         appointmentRequests={allAppointmentRequests}
+                        programs={allPrograms}
                     />
                 </div>
             </main>

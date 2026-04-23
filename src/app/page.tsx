@@ -1,4 +1,4 @@
-import { getRooms, getAllBookings, getStaffHours } from './actions';
+import { getRooms, getAllBookings, getStaffHours, getTodaysPrograms } from './actions';
 import BookingInterface from '@/components/BookingInterface';
 import PublicBookings from '@/components/PublicBookings';
 import TodayDashboard from '@/components/TodayDashboard';
@@ -13,6 +13,7 @@ export default async function Home() {
   const rooms = await getRooms();
   const bookings = await getAllBookings();
   const staff = await getStaffHours();
+  const todaysPrograms = await getTodaysPrograms();
 
   return (
     <main className="min-h-screen bg-white p-4 md:p-8 flex flex-col">
@@ -34,7 +35,7 @@ export default async function Home() {
             </TabsList>
 
             <TabsContent value="dashboard">
-                <TodayDashboard rooms={rooms} bookings={bookings} staff={staff} />
+                <TodayDashboard rooms={rooms} bookings={bookings} staff={staff} programs={todaysPrograms} />
             </TabsContent>
 
             <TabsContent value="book">

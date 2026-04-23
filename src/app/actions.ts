@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/db';
-import { bookings, rooms, settings, admins, appointmentRequests } from '@/db/schema';
+import { bookings, rooms, settings, admins, appointmentRequests, programs } from '@/db/schema';
 import { eq, and, gt, lt, gte, lte, or } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { compare, hash } from 'bcryptjs';
@@ -554,4 +554,115 @@ export async function updateAppointmentStatus(id: number, status: 'confirmed' | 
 
     revalidatePath('/admin');
     return { success: true };
+}
+
+// --- Programming Actions ---
+
+export async function getPrograms() {
+    return await db.select().from(programs).orderBy(programs.date, programs.time).execute();
+}
+
+export async function getTodaysPrograms() {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ...
+
+    const allPrograms = await db.select().from(programs).execute();
+
+    return allPrograms.filter((p) => {
+        // Direct date match
+        if (p.date === todayStr) return true;
+
+        // Recurring program check
+        if (!p.isRecurring || !p.recurrencePattern) return false;
+
+        try {
+            const pattern = JSON.parse(p.recurrencePattern);
+
+            // Check if ended
+            if (pattern.endDate && pattern.endDate < todayStr) return false;
+
+            // Check start date - don't show before the program's first date
+            if (p.date && p.date > todayStr) return false;
+
+            if (pattern.frequency === 'daily') return true;
+
+            if (pattern.frequency === 'weekly') {
+                return pattern.daysOfWeek?.includes(dayOfWeek) ?? false;
+            }
+
+            if (pattern.frequency === 'monthly') {
+                const dayOfMonth = today.getDate();
+                return pattern.dayOfMonth === dayOfMonth;
+            }
+        } catch {
+            return false;
+        }
+
+        return false;
+    });
+}
+
+export async function createProgram(data: {
+    name: string;
+    responsibleParty: string;
+    date: string;
+    time: string;
+    isRecurring: boolean;
+    recurrencePattern?: string | null;
+    attendees: string;
+}) {
+    const session = await getSession();
+    if (!session) throw new Error('Unauthorized');
+
+    await db.insert(programs).values({
+        name: data.name,
+        responsibleParty: data.responsibleParty,
+        date: data.date,
+        time: data.time,
+        isRecurring: data.isRecurring,
+        recurrencePattern: data.recurrencePattern || null,
+        attendees: data.attendees,
+    }).execute();
+
+    revalidatePath('/');
+    revalidatePath('/admin');
+    return { success: true };
+}
+
+export async function updateProgram(data: {
+    id: number;
+    name: string;
+    responsibleParty: string;
+    date: string;
+    time: string;
+    isRecurring: boolean;
+    recurrencePattern?: string | null;
+    attendees: string;
+}) {
+    const session = await getSession();
+    if (!session) throw new Error('Unauthorized');
+
+    await db.update(programs).set({
+        name: data.name,
+        responsibleParty: data.responsibleParty,
+        date: data.date,
+        time: data.time,
+        isRecurring: data.isRecurring,
+        recurrencePattern: data.recurrencePattern || null,
+        attendees: data.attendees,
+    }).where(eq(programs.id, data.id)).execute();
+
+    revalidatePath('/');
+    revalidatePath('/admin');
+    return { success: true };
+}
+
+export async function deleteProgram(id: number) {
+    const session = await getSession();
+    if (!session) throw new Error('Unauthorized');
+
+    await db.delete(programs).where(eq(programs.id, id)).execute();
+    revalidatePath('/');
+    revalidatePath('/admin');
 }

@@ -7,14 +7,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-    deleteBooking, createRoom, deleteRoom, updateRoom, 
-    createAdmin, deleteAdmin, updateAdmin, 
-    approveAdmin, rejectAdmin // New imports
+import {
+    deleteBooking, createRoom, deleteRoom, updateRoom,
+    createAdmin, deleteAdmin, updateAdmin,
+    approveAdmin, rejectAdmin,
+    createProgram, updateProgram, deleteProgram
 } from '@/app/actions';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { Trash2, Plus, UserPlus, Shield, Pencil, Check, X } from 'lucide-react'; // New icons
+import { Trash2, Plus, UserPlus, Shield, Pencil, Check, X, CalendarPlus, Repeat } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import AppointmentRequests from '@/components/AppointmentRequests';
 
@@ -60,7 +61,20 @@ async function compressImage(file: File, maxSizeMB = 1): Promise<File> {
     });
 }
 
-export default function AdminDashboard({ bookings, rooms, admins, appointmentRequests = [] }: { bookings: Booking[], rooms: Room[], admins: Admin[], appointmentRequests?: any[] }) {
+type Program = {
+    id: number;
+    name: string;
+    responsibleParty: string;
+    date: string;
+    time: string;
+    isRecurring: boolean;
+    recurrencePattern: string | null;
+    attendees: string;
+};
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+export default function AdminDashboard({ bookings, rooms, admins, appointmentRequests = [], programs = [] }: { bookings: Booking[], rooms: Room[], admins: Admin[], appointmentRequests?: any[], programs?: Program[] }) {
     const [newRoom, setNewRoom] = useState({ name: '', capacity: '', description: '', openTime: '09:00', closeTime: '17:00' });
     const [editingRoom, setEditingRoom] = useState<Room | null>(null);
     const [isEditRoomOpen, setIsEditRoomOpen] = useState(false);
@@ -69,6 +83,14 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
     const [editingAdmin, setEditingAdmin] = useState<Admin & { password?: string } | null>(null);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [requestRoles, setRequestRoles] = useState<Record<number, 'admin' | 'staff' | 'HTH'>>({});
+
+    // Program state
+    const [newProgram, setNewProgram] = useState({
+        name: '', responsibleParty: '', date: '', time: '', isRecurring: false,
+        frequency: 'weekly', daysOfWeek: [] as number[], endDate: '', dayOfMonth: 1, attendees: ''
+    });
+    const [editingProgram, setEditingProgram] = useState<Program & { frequency?: string; daysOfWeek?: number[]; endDate?: string; dayOfMonth?: number } | null>(null);
+    const [isEditProgramOpen, setIsEditProgramOpen] = useState(false);
 
     // Filter admins based on status
     const activeAdmins = admins.filter(admin => admin.status === 'active');
@@ -213,11 +235,106 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
         }
     };
 
+    // --- Program Handlers ---
+    const buildRecurrencePattern = (data: { isRecurring: boolean; frequency: string; daysOfWeek: number[]; endDate: string; dayOfMonth: number }) => {
+        if (!data.isRecurring) return null;
+        const pattern: any = { frequency: data.frequency };
+        if (data.frequency === 'weekly') pattern.daysOfWeek = data.daysOfWeek;
+        if (data.frequency === 'monthly') pattern.dayOfMonth = data.dayOfMonth;
+        if (data.endDate) pattern.endDate = data.endDate;
+        return JSON.stringify(pattern);
+    };
+
+    const parseRecurrencePattern = (program: Program) => {
+        if (!program.recurrencePattern) return { frequency: 'weekly', daysOfWeek: [] as number[], endDate: '', dayOfMonth: 1 };
+        try {
+            const p = JSON.parse(program.recurrencePattern);
+            return {
+                frequency: p.frequency || 'weekly',
+                daysOfWeek: p.daysOfWeek || [],
+                endDate: p.endDate || '',
+                dayOfMonth: p.dayOfMonth || 1,
+            };
+        } catch { return { frequency: 'weekly', daysOfWeek: [] as number[], endDate: '', dayOfMonth: 1 }; }
+    };
+
+    const handleCreateProgram = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            await createProgram({
+                name: newProgram.name,
+                responsibleParty: newProgram.responsibleParty,
+                date: newProgram.date,
+                time: newProgram.time,
+                isRecurring: newProgram.isRecurring,
+                recurrencePattern: buildRecurrencePattern(newProgram),
+                attendees: newProgram.attendees,
+            });
+            setNewProgram({ name: '', responsibleParty: '', date: '', time: '', isRecurring: false, frequency: 'weekly', daysOfWeek: [], endDate: '', dayOfMonth: 1, attendees: '' });
+            toast.success('Program created');
+        } catch (e: any) {
+            toast.error(e.message || 'Failed to create program');
+        }
+    };
+
+    const handleUpdateProgram = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingProgram) return;
+        try {
+            await updateProgram({
+                id: editingProgram.id,
+                name: editingProgram.name,
+                responsibleParty: editingProgram.responsibleParty,
+                date: editingProgram.date,
+                time: editingProgram.time,
+                isRecurring: editingProgram.isRecurring,
+                recurrencePattern: buildRecurrencePattern({
+                    isRecurring: editingProgram.isRecurring,
+                    frequency: editingProgram.frequency || 'weekly',
+                    daysOfWeek: editingProgram.daysOfWeek || [],
+                    endDate: editingProgram.endDate || '',
+                    dayOfMonth: editingProgram.dayOfMonth || 1,
+                }),
+                attendees: editingProgram.attendees,
+            });
+            setIsEditProgramOpen(false);
+            setEditingProgram(null);
+            toast.success('Program updated');
+        } catch (e: any) {
+            toast.error(e.message || 'Failed to update program');
+        }
+    };
+
+    const handleDeleteProgram = async (id: number) => {
+        if (!confirm('Delete this program?')) return;
+        try {
+            await deleteProgram(id);
+            toast.success('Program deleted');
+        } catch (e) {
+            toast.error('Failed to delete program');
+        }
+    };
+
+    const formatRecurrence = (program: Program) => {
+        if (!program.isRecurring || !program.recurrencePattern) return 'One-time';
+        try {
+            const p = JSON.parse(program.recurrencePattern);
+            if (p.frequency === 'daily') return `Daily${p.endDate ? ` until ${p.endDate}` : ''}`;
+            if (p.frequency === 'weekly') {
+                const days = (p.daysOfWeek || []).map((d: number) => DAY_NAMES[d]).join(', ');
+                return `Weekly (${days})${p.endDate ? ` until ${p.endDate}` : ''}`;
+            }
+            if (p.frequency === 'monthly') return `Monthly (day ${p.dayOfMonth})${p.endDate ? ` until ${p.endDate}` : ''}`;
+        } catch {}
+        return 'Recurring';
+    };
+
     return (
         <Tabs defaultValue="bookings" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-8">
+            <TabsList className="grid w-full grid-cols-5 mb-8">
                 <TabsTrigger value="bookings">Bookings</TabsTrigger>
                 <TabsTrigger value="rooms">Rooms</TabsTrigger>
+                <TabsTrigger value="programming">Programming</TabsTrigger>
                 <TabsTrigger value="admins">Users</TabsTrigger>
                 <TabsTrigger value="requests">Requests ({pendingRequests.length})</TabsTrigger>
             </TabsList>
@@ -447,6 +564,343 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                     </div>
                                 ))}
                             </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </TabsContent>
+
+            {/* --- PROGRAMMING TAB --- */}
+            <TabsContent value="programming">
+                <div className="grid gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Add New Program</CardTitle>
+                            <CardDescription>Schedule a new program or recurring event.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={handleCreateProgram} className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Program Name</Label>
+                                        <Input
+                                            value={newProgram.name}
+                                            onChange={e => setNewProgram({...newProgram, name: e.target.value})}
+                                            placeholder="e.g. Job Readiness Workshop"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Responsible Party</Label>
+                                        <Input
+                                            value={newProgram.responsibleParty}
+                                            onChange={e => setNewProgram({...newProgram, responsibleParty: e.target.value})}
+                                            placeholder="e.g. John Smith"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Date</Label>
+                                        <Input
+                                            type="date"
+                                            value={newProgram.date}
+                                            onChange={e => setNewProgram({...newProgram, date: e.target.value})}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Time</Label>
+                                        <Input
+                                            type="time"
+                                            value={newProgram.time}
+                                            onChange={e => setNewProgram({...newProgram, time: e.target.value})}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Who Should Attend</Label>
+                                    <Input
+                                        value={newProgram.attendees}
+                                        onChange={e => setNewProgram({...newProgram, attendees: e.target.value})}
+                                        placeholder="e.g. Staff, HTH, All"
+                                        required
+                                    />
+                                </div>
+
+                                {/* Recurring toggle */}
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        id="new-recurring"
+                                        checked={newProgram.isRecurring}
+                                        onChange={e => setNewProgram({...newProgram, isRecurring: e.target.checked})}
+                                        className="h-4 w-4 rounded border-gray-300"
+                                    />
+                                    <Label htmlFor="new-recurring" className="cursor-pointer">This is a recurring program</Label>
+                                </div>
+
+                                {newProgram.isRecurring && (
+                                    <div className="border rounded-lg p-4 space-y-4 bg-slate-50">
+                                        <div className="space-y-2">
+                                            <Label>Frequency</Label>
+                                            <Select value={newProgram.frequency} onValueChange={(val) => setNewProgram({...newProgram, frequency: val})}>
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="daily">Daily</SelectItem>
+                                                    <SelectItem value="weekly">Weekly</SelectItem>
+                                                    <SelectItem value="monthly">Monthly</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        {newProgram.frequency === 'weekly' && (
+                                            <div className="space-y-2">
+                                                <Label>Days of Week</Label>
+                                                <div className="flex gap-2 flex-wrap">
+                                                    {DAY_NAMES.map((day, i) => (
+                                                        <button
+                                                            key={i}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const days = newProgram.daysOfWeek.includes(i)
+                                                                    ? newProgram.daysOfWeek.filter(d => d !== i)
+                                                                    : [...newProgram.daysOfWeek, i];
+                                                                setNewProgram({...newProgram, daysOfWeek: days});
+                                                            }}
+                                                            className={`px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
+                                                                newProgram.daysOfWeek.includes(i)
+                                                                    ? 'bg-primary text-primary-foreground border-primary'
+                                                                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                                                            }`}
+                                                        >
+                                                            {day}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {newProgram.frequency === 'monthly' && (
+                                            <div className="space-y-2">
+                                                <Label>Day of Month</Label>
+                                                <Input
+                                                    type="number"
+                                                    min="1"
+                                                    max="31"
+                                                    value={newProgram.dayOfMonth}
+                                                    onChange={e => setNewProgram({...newProgram, dayOfMonth: parseInt(e.target.value) || 1})}
+                                                />
+                                            </div>
+                                        )}
+
+                                        <div className="space-y-2">
+                                            <Label>End Date (optional)</Label>
+                                            <Input
+                                                type="date"
+                                                value={newProgram.endDate}
+                                                onChange={e => setNewProgram({...newProgram, endDate: e.target.value})}
+                                            />
+                                            <p className="text-xs text-muted-foreground">Leave blank for no end date</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <Button type="submit"><CalendarPlus className="h-4 w-4 mr-2"/> Add Program</Button>
+                            </form>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Existing Programs</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {programs.length === 0 ? (
+                                <p className="text-muted-foreground text-center py-8">No programs yet.</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {programs.map((program) => (
+                                        <div key={program.id} className="flex items-center justify-between p-4 border rounded-lg">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="font-medium">{program.name}</h4>
+                                                    {program.isRecurring && <Repeat className="h-3.5 w-3.5 text-purple-500" />}
+                                                </div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    {program.responsibleParty} &bull; {program.attendees}
+                                                </p>
+                                                <p className="text-sm font-semibold text-slate-700">
+                                                    {program.date} at {program.time} &bull; {formatRecurrence(program)}
+                                                </p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Dialog open={isEditProgramOpen && editingProgram?.id === program.id} onOpenChange={(open) => {
+                                                    if (open) {
+                                                        const parsed = parseRecurrencePattern(program);
+                                                        setEditingProgram({ ...program, ...parsed });
+                                                    } else {
+                                                        setEditingProgram(null);
+                                                        setIsEditProgramOpen(false);
+                                                    }
+                                                }}>
+                                                    <DialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" onClick={() => {
+                                                            const parsed = parseRecurrencePattern(program);
+                                                            setEditingProgram({ ...program, ...parsed });
+                                                            setIsEditProgramOpen(true);
+                                                        }}>
+                                                            <Pencil className="h-4 w-4 text-slate-500" />
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle>Edit Program</DialogTitle>
+                                                        </DialogHeader>
+                                                        {editingProgram && (
+                                                            <form onSubmit={handleUpdateProgram} className="space-y-4">
+                                                                <div className="grid grid-cols-2 gap-4">
+                                                                    <div className="space-y-2">
+                                                                        <Label>Program Name</Label>
+                                                                        <Input
+                                                                            value={editingProgram.name}
+                                                                            onChange={e => setEditingProgram({...editingProgram, name: e.target.value})}
+                                                                            required
+                                                                        />
+                                                                    </div>
+                                                                    <div className="space-y-2">
+                                                                        <Label>Responsible Party</Label>
+                                                                        <Input
+                                                                            value={editingProgram.responsibleParty}
+                                                                            onChange={e => setEditingProgram({...editingProgram, responsibleParty: e.target.value})}
+                                                                            required
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-4">
+                                                                    <div className="space-y-2">
+                                                                        <Label>Date</Label>
+                                                                        <Input
+                                                                            type="date"
+                                                                            value={editingProgram.date}
+                                                                            onChange={e => setEditingProgram({...editingProgram, date: e.target.value})}
+                                                                            required
+                                                                        />
+                                                                    </div>
+                                                                    <div className="space-y-2">
+                                                                        <Label>Time</Label>
+                                                                        <Input
+                                                                            type="time"
+                                                                            value={editingProgram.time}
+                                                                            onChange={e => setEditingProgram({...editingProgram, time: e.target.value})}
+                                                                            required
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label>Who Should Attend</Label>
+                                                                    <Input
+                                                                        value={editingProgram.attendees}
+                                                                        onChange={e => setEditingProgram({...editingProgram, attendees: e.target.value})}
+                                                                        required
+                                                                    />
+                                                                </div>
+
+                                                                <div className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        id="edit-recurring"
+                                                                        checked={editingProgram.isRecurring}
+                                                                        onChange={e => setEditingProgram({...editingProgram, isRecurring: e.target.checked})}
+                                                                        className="h-4 w-4 rounded border-gray-300"
+                                                                    />
+                                                                    <Label htmlFor="edit-recurring" className="cursor-pointer">Recurring program</Label>
+                                                                </div>
+
+                                                                {editingProgram.isRecurring && (
+                                                                    <div className="border rounded-lg p-4 space-y-4 bg-slate-50">
+                                                                        <div className="space-y-2">
+                                                                            <Label>Frequency</Label>
+                                                                            <Select value={editingProgram.frequency || 'weekly'} onValueChange={(val) => setEditingProgram({...editingProgram, frequency: val})}>
+                                                                                <SelectTrigger>
+                                                                                    <SelectValue />
+                                                                                </SelectTrigger>
+                                                                                <SelectContent>
+                                                                                    <SelectItem value="daily">Daily</SelectItem>
+                                                                                    <SelectItem value="weekly">Weekly</SelectItem>
+                                                                                    <SelectItem value="monthly">Monthly</SelectItem>
+                                                                                </SelectContent>
+                                                                            </Select>
+                                                                        </div>
+
+                                                                        {editingProgram.frequency === 'weekly' && (
+                                                                            <div className="space-y-2">
+                                                                                <Label>Days of Week</Label>
+                                                                                <div className="flex gap-2 flex-wrap">
+                                                                                    {DAY_NAMES.map((day, i) => (
+                                                                                        <button
+                                                                                            key={i}
+                                                                                            type="button"
+                                                                                            onClick={() => {
+                                                                                                const days = (editingProgram.daysOfWeek || []).includes(i)
+                                                                                                    ? (editingProgram.daysOfWeek || []).filter(d => d !== i)
+                                                                                                    : [...(editingProgram.daysOfWeek || []), i];
+                                                                                                setEditingProgram({...editingProgram, daysOfWeek: days});
+                                                                                            }}
+                                                                                            className={`px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
+                                                                                                (editingProgram.daysOfWeek || []).includes(i)
+                                                                                                    ? 'bg-primary text-primary-foreground border-primary'
+                                                                                                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                                                                                            }`}
+                                                                                        >
+                                                                                            {day}
+                                                                                        </button>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {editingProgram.frequency === 'monthly' && (
+                                                                            <div className="space-y-2">
+                                                                                <Label>Day of Month</Label>
+                                                                                <Input
+                                                                                    type="number"
+                                                                                    min="1"
+                                                                                    max="31"
+                                                                                    value={editingProgram.dayOfMonth || 1}
+                                                                                    onChange={e => setEditingProgram({...editingProgram, dayOfMonth: parseInt(e.target.value) || 1})}
+                                                                                />
+                                                                            </div>
+                                                                        )}
+
+                                                                        <div className="space-y-2">
+                                                                            <Label>End Date (optional)</Label>
+                                                                            <Input
+                                                                                type="date"
+                                                                                value={editingProgram.endDate || ''}
+                                                                                onChange={e => setEditingProgram({...editingProgram, endDate: e.target.value})}
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                <Button type="submit" className="w-full">Save Changes</Button>
+                                                            </form>
+                                                        )}
+                                                    </DialogContent>
+                                                </Dialog>
+
+                                                <Button variant="ghost" size="icon" onClick={() => handleDeleteProgram(program.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
