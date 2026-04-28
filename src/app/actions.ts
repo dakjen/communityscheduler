@@ -8,6 +8,7 @@ import { compare, hash } from 'bcryptjs';
 import { getSession, signSession, setSession, clearSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { sendBookingConfirmation, sendStaffNotification } from '@/lib/email';
+import { loginLimiter, registrationLimiter, usernameCheckLimiter } from '@/lib/rate-limit';
 
 // --- Admin User Management Actions ---
 
@@ -25,6 +26,9 @@ export async function getAdmins() {
 
 export async function createAdmin(data: { username: string; password: string; fullName: string; email: string; role: 'admin' | 'staff' | 'HTH'; status?: 'pending' | 'active' | 'rejected'; serviceType?: string }) {
   const normalizedUsername = data.username.toLowerCase();
+
+  usernameCheckLimiter.check(normalizedUsername);
+
   const existing = await db.query.admins.findFirst({
     where: eq(admins.username, normalizedUsername)
   });
@@ -58,6 +62,8 @@ export async function createAdminAction(formData: FormData) {
   if (!username || !password || !fullName || !email) {
     throw new Error('All fields are required.');
   }
+
+  registrationLimiter.check(username);
 
   await createAdmin({
     username,
@@ -130,6 +136,8 @@ export async function login(formData: FormData) {
   if (!username || !password) {
     throw new Error('Please provide both username and password.');
   }
+
+  loginLimiter.check(username);
 
   const admin = await db.query.admins.findFirst({
     where: eq(admins.username, username),
