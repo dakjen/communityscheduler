@@ -1,13 +1,13 @@
 import { pgTable, serial, text, integer, varchar, boolean, timestamp } from 'drizzle-orm/pg-core';
 
+// weeklyHours JSON shape: { mon: { open: "09:00", close: "17:00", closed: false }, tue: {...}, ... sun: {...} }
 export const rooms = pgTable('rooms', {
   id: serial('id').primaryKey(), // serial for auto-incrementing PK in PG
   name: varchar('name', { length: 256 }).notNull(),
   description: text('description'),
   capacity: integer('capacity').notNull(),
   imageUrl: text('image_url'), // Changed to text for Base64 storage
-  openTime: varchar('open_time', { length: 5 }).notNull().default('09:00'), // HH:mm format
-  closeTime: varchar('close_time', { length: 5 }).notNull().default('17:00'), // HH:mm format
+  weeklyHours: text('weekly_hours').notNull(),
 });
 
 export const bookings = pgTable('bookings', {
@@ -52,6 +52,25 @@ export const programs = pgTable('programs', {
   isRecurring: boolean('is_recurring').default(false).notNull(),
   recurrencePattern: text('recurrence_pattern'), // JSON: { frequency: 'daily'|'weekly'|'monthly', daysOfWeek?: number[], endDate?: string }
   attendees: varchar('attendees', { length: 256 }).notNull(), // e.g. "Staff", "HTH", "Staff, HTH", "All"
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const laptops = pgTable('laptops', {
+  id: serial('id').primaryKey(),
+  number: integer('number').notNull().unique(),
+});
+
+export const laptopBookings = pgTable('laptop_bookings', {
+  id: serial('id').primaryKey(),
+  laptopId: integer('laptop_id').references(() => laptops.id).notNull(),
+  userId: varchar('user_id', { length: 256 }),
+  customerName: varchar('customer_name', { length: 256 }).notNull(),
+  customerEmail: varchar('customer_email', { length: 256 }).notNull(),
+  customerPhone: varchar('customer_phone', { length: 20 }).notNull(),
+  idAgreed: boolean('id_agreed').notNull(),
+  startTime: timestamp('start_time').notNull(),
+  endTime: timestamp('end_time').notNull(),
+  status: varchar('status', { enum: ['pending', 'confirmed', 'cancelled'] }).default('pending'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

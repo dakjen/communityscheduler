@@ -22,9 +22,23 @@ type Room = {
   description: string | null;
   capacity: number;
   imageUrl: string | null;
-  openTime: string; // 24-hour format
-  closeTime: string; // 24-hour format
+  weeklyHours: string; // JSON
 };
+
+const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+type DayHours = { open: string; close: string; closed: boolean };
+type WeeklyHoursMap = Record<typeof DAY_KEYS[number], DayHours>;
+
+function getDayHours(weeklyHoursJson: string, date: Date): DayHours | null {
+  try {
+    const wh = JSON.parse(weeklyHoursJson) as WeeklyHoursMap;
+    const day = wh[DAY_KEYS[date.getDay()]];
+    if (!day || day.closed) return null;
+    return day;
+  } catch {
+    return null;
+  }
+}
 
 type TimeSlot = {
   time: Date;
@@ -95,8 +109,10 @@ export default function BookingInterface({ rooms }: { rooms: Room[] }) {
     const room = rooms.find(r => r.id.toString() === selectedRoom);
     if (!room) return [];
 
-    const [openH, openM] = room.openTime.split(':').map(Number);
-    const [closeH, closeM] = room.closeTime.split(':').map(Number);
+    const dayHours = getDayHours(room.weeklyHours, date);
+    if (!dayHours) return []; // Closed that day
+    const [openH, openM] = dayHours.open.split(':').map(Number);
+    const [closeH, closeM] = dayHours.close.split(':').map(Number);
 
     let current = setMinutes(setHours(date, openH), openM);
     const end = setMinutes(setHours(date, closeH), closeM);
@@ -264,9 +280,15 @@ export default function BookingInterface({ rooms }: { rooms: Room[] }) {
                                 <p className="text-sm text-muted-foreground">
                                     {room?.description}
                                 </p>
-                                <p className="text-xs font-medium text-slate-900">
-                                    Hours: {room?.openTime} - {room?.closeTime}
-                                </p>
+                                {(() => {
+                                    if (!room || !date) return null;
+                                    const dh = getDayHours(room.weeklyHours, date);
+                                    return (
+                                        <p className="text-xs font-medium text-slate-900">
+                                            {dh ? `${format(date, 'EEEE')}: ${dh.open} – ${dh.close}` : `Closed ${format(date, 'EEEE')}`}
+                                        </p>
+                                    );
+                                })()}
                             </div>
                         </div>
                     );

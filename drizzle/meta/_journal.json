@@ -8,6 +8,13 @@
       "when": 1776887832969,
       "tag": "0000_heavy_madame_hydra",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778328000000,
+      "tag": "0001_weekly_hours_and_laptops",
+      "breakpoints": true
     }
   ]
 }

@@ -44,9 +44,18 @@ type Room = {
     description: string | null;
     capacity: number;
     imageUrl: string | null;
-    openTime: string;
-    closeTime: string;
+    weeklyHours: string;
 };
+
+const DAY_KEYS_TD = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+function getTodayHours(weeklyHoursJson: string): { open: string; close: string } | null {
+    try {
+        const wh = JSON.parse(weeklyHoursJson) as Record<string, { open: string; close: string; closed: boolean }>;
+        const day = wh[DAY_KEYS_TD[new Date().getDay()]];
+        if (!day || day.closed) return null;
+        return { open: day.open, close: day.close };
+    } catch { return null; }
+}
 
 type StaffMember = {
     username: string;
@@ -241,11 +250,14 @@ export default function TodayDashboard({
                                                         </li>
                                                     ))}
                                                 </ul>
-                                            ) : (
-                                                <p className="text-sm text-gray-400">
-                                                    Open {formatTime(room.openTime)} – {formatTime(room.closeTime)}
-                                                </p>
-                                            )}
+                                            ) : (() => {
+                                                const todayH = getTodayHours(room.weeklyHours);
+                                                return (
+                                                    <p className="text-sm text-gray-400">
+                                                        {todayH ? `Open ${formatTime(todayH.open)} – ${formatTime(todayH.close)}` : 'Closed today'}
+                                                    </p>
+                                                );
+                                            })()}
                                         </div>
                                     );
                                 })}

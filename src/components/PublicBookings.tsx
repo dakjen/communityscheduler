@@ -23,8 +23,7 @@ type Room = {
     description: string | null;
     capacity: number;
     imageUrl: string | null;
-    openTime: string;
-    closeTime: string;
+    weeklyHours: string;
 };
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

@@ -1,14 +1,55 @@
 'use server';
 
 import { db } from '@/db';
-import { bookings, rooms, settings, admins, appointmentRequests, programs } from '@/db/schema';
-import { eq, and, gt, lt, gte, lte, or } from 'drizzle-orm';
+import { bookings, rooms, settings, admins, appointmentRequests, programs, laptops, laptopBookings } from '@/db/schema';
+import { eq, and, gt, lt, gte, lte, or, asc } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { compare, hash } from 'bcryptjs';
 import { getSession, signSession, setSession, clearSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { sendBookingConfirmation, sendStaffNotification } from '@/lib/email';
 import { loginLimiter, registrationLimiter, usernameCheckLimiter } from '@/lib/rate-limit';
+
+// --- Weekly Hours Helpers ---
+
+const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+type DayKey = typeof DAY_KEYS[number];
+type DayHours = { open: string; close: string; closed: boolean };
+type WeeklyHours = Record<DayKey, DayHours>;
+
+function parseWeeklyHours(raw: string | null | undefined): WeeklyHours | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed as WeeklyHours;
+  } catch {
+    return null;
+  }
+}
+
+// Validates a [startTime, endTime] window (same calendar day) against a weeklyHours JSON.
+// Throws with a friendly message if outside hours or on a closed day.
+function assertWithinWeeklyHours(weeklyHoursRaw: string, startTime: Date, endTime: Date, label: string) {
+  const wh = parseWeeklyHours(weeklyHoursRaw);
+  if (!wh) throw new Error(`${label} hours are not configured.`);
+
+  const dayKey = DAY_KEYS[startTime.getDay()];
+  const dayHours = wh[dayKey];
+  if (!dayHours || dayHours.closed) {
+    throw new Error(`${label} is closed on ${dayKey.charAt(0).toUpperCase() + dayKey.slice(1)}.`);
+  }
+
+  const [openH, openM] = dayHours.open.split(':').map(Number);
+  const [closeH, closeM] = dayHours.close.split(':').map(Number);
+  const startTotal = startTime.getHours() * 60 + startTime.getMinutes();
+  const endTotal = endTime.getHours() * 60 + endTime.getMinutes();
+  const openTotal = openH * 60 + openM;
+  const closeTotal = closeH * 60 + closeM;
+
+  if (startTotal < openTotal || endTotal > closeTotal) {
+    throw new Error(`${label} is open ${dayHours.open} – ${dayHours.close} on ${dayKey.charAt(0).toUpperCase() + dayKey.slice(1)}.`);
+  }
+}
 
 // --- Admin User Management Actions ---
 
@@ -241,20 +282,6 @@ export async function createBooking(data: {
 
   if (!room) throw new Error('Room not found');
 
-  const [openHour, openMinute] = room.openTime.split(':').map(Number);
-  const [closeHour, closeMinute] = room.closeTime.split(':').map(Number);
-
-  const startHour = data.startTime.getHours();
-  const startMinute = data.startTime.getMinutes();
-  const endHour = data.endTime.getHours();
-  const endMinute = data.endTime.getMinutes();
-
-  const startTotal = startHour * 60 + startMinute;
-  const endTotal = endHour * 60 + endMinute;
-  const openTotal = openHour * 60 + openMinute;
-  const closeTotal = closeHour * 60 + closeMinute;
-
-  // Calculate duration in hours
   const durationMs = data.endTime.getTime() - data.startTime.getTime();
   const durationHours = durationMs / (1000 * 60 * 60);
 
@@ -262,9 +289,7 @@ export async function createBooking(data: {
     throw new Error('Maximum booking duration is 3 hours.');
   }
 
-  if (startTotal < openTotal || endTotal > closeTotal) {
-    throw new Error(`Bookings for ${room.name} must be between ${room.openTime} and ${room.closeTime}.`);
-  }
+  assertWithinWeeklyHours(room.weeklyHours, data.startTime, data.endTime, room.name);
 
   const conflict = await db.query.bookings.findFirst({
     where: and(
@@ -335,12 +360,33 @@ export async function deleteBooking(id: number) {
   revalidatePath('/');
 }
 
+const DEFAULT_WEEKLY_HOURS_JSON = JSON.stringify({
+  mon: { open: '09:00', close: '17:00', closed: false },
+  tue: { open: '09:00', close: '17:00', closed: false },
+  wed: { open: '09:00', close: '17:00', closed: false },
+  thu: { open: '09:00', close: '17:00', closed: false },
+  fri: { open: '09:00', close: '17:00', closed: false },
+  sat: { open: '09:00', close: '17:00', closed: false },
+  sun: { open: '09:00', close: '17:00', closed: false },
+});
+
+function readWeeklyHoursFromForm(formData: FormData): string {
+  const raw = formData.get('weeklyHours') as string | null;
+  if (!raw) return DEFAULT_WEEKLY_HOURS_JSON;
+  // Validate it parses and has all 7 days, otherwise fall back to default
+  const parsed = parseWeeklyHours(raw);
+  if (!parsed) return DEFAULT_WEEKLY_HOURS_JSON;
+  for (const k of DAY_KEYS) {
+    if (!parsed[k]) return DEFAULT_WEEKLY_HOURS_JSON;
+  }
+  return raw;
+}
+
 export async function createRoom(formData: FormData) {
   const name = formData.get('name') as string;
   const capacity = parseInt(formData.get('capacity') as string);
   const description = formData.get('description') as string;
-  const openTime = formData.get('openTime') as string || '09:00';
-  const closeTime = formData.get('closeTime') as string || '17:00';
+  const weeklyHours = readWeeklyHoursFromForm(formData);
   const imageFile = formData.get('image') as File | null;
 
   let imageUrl: string | null = null;
@@ -361,8 +407,7 @@ export async function createRoom(formData: FormData) {
     capacity,
     description,
     imageUrl,
-    openTime,
-    closeTime
+    weeklyHours,
   }).execute();
 
   revalidatePath('/');
@@ -374,16 +419,14 @@ export async function updateRoom(formData: FormData) {
   const name = formData.get('name') as string;
   const capacity = parseInt(formData.get('capacity') as string);
   const description = formData.get('description') as string;
-  const openTime = formData.get('openTime') as string;
-  const closeTime = formData.get('closeTime') as string;
+  const weeklyHours = readWeeklyHoursFromForm(formData);
   const imageFile = formData.get('image') as File | null;
 
   const updateData: any = {
     name,
     capacity,
     description,
-    openTime,
-    closeTime
+    weeklyHours,
   };
 
   if (imageFile && imageFile.size > 0) {
@@ -673,4 +716,147 @@ export async function deleteProgram(id: number) {
     await db.delete(programs).where(eq(programs.id, id)).execute();
     revalidatePath('/');
     revalidatePath('/admin');
+}
+
+// --- Laptop Actions ---
+
+const LAPTOP_HOURS_KEY = 'laptopHours';
+
+export async function getLaptops() {
+    return await db.select().from(laptops).orderBy(asc(laptops.number)).execute();
+}
+
+export async function getLaptopHours(): Promise<string> {
+    const row = await db.query.settings.findFirst({ where: eq(settings.key, LAPTOP_HOURS_KEY) });
+    return row?.value || DEFAULT_WEEKLY_HOURS_JSON;
+}
+
+export async function updateLaptopHours(weeklyHoursJson: string) {
+    const session = await getSession();
+    if (!session) throw new Error('Unauthorized');
+
+    const parsed = parseWeeklyHours(weeklyHoursJson);
+    if (!parsed) throw new Error('Invalid hours payload.');
+    for (const k of DAY_KEYS) {
+        if (!parsed[k]) throw new Error(`Missing hours for ${k}.`);
+    }
+
+    const existing = await db.query.settings.findFirst({ where: eq(settings.key, LAPTOP_HOURS_KEY) });
+    if (existing) {
+        await db.update(settings).set({ value: weeklyHoursJson }).where(eq(settings.key, LAPTOP_HOURS_KEY)).execute();
+    } else {
+        await db.insert(settings).values({ key: LAPTOP_HOURS_KEY, value: weeklyHoursJson }).execute();
+    }
+
+    revalidatePath('/');
+    revalidatePath('/admin');
+    return { success: true };
+}
+
+// All laptop bookings overlapping a given calendar day
+export async function getLaptopBookingsForDate(date: Date) {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return await db.select({
+        id: laptopBookings.id,
+        laptopId: laptopBookings.laptopId,
+        startTime: laptopBookings.startTime,
+        endTime: laptopBookings.endTime,
+    }).from(laptopBookings).where(
+        and(
+            gte(laptopBookings.endTime, startOfDay),
+            lte(laptopBookings.startTime, endOfDay)
+        )
+    ).execute();
+}
+
+export async function getAllLaptopBookings() {
+    return await db.select({
+        id: laptopBookings.id,
+        laptopId: laptopBookings.laptopId,
+        laptopNumber: laptops.number,
+        customerName: laptopBookings.customerName,
+        customerEmail: laptopBookings.customerEmail,
+        customerPhone: laptopBookings.customerPhone,
+        startTime: laptopBookings.startTime,
+        endTime: laptopBookings.endTime,
+        status: laptopBookings.status,
+    })
+    .from(laptopBookings)
+    .leftJoin(laptops, eq(laptopBookings.laptopId, laptops.id))
+    .orderBy(laptopBookings.startTime)
+    .execute();
+}
+
+export async function createLaptopBooking(data: {
+    userId?: string | null;
+    customerName: string;
+    customerEmail: string;
+    customerPhone: string;
+    idAgreed: boolean;
+    startTime: Date;
+    endTime: Date;
+}) {
+    if (!data.idAgreed) {
+        throw new Error('You must agree to leave your ID or wallet with the PCC admin to receive a laptop.');
+    }
+
+    const durationHours = (data.endTime.getTime() - data.startTime.getTime()) / (1000 * 60 * 60);
+    if (durationHours <= 0) throw new Error('Invalid time range.');
+    if (durationHours > 2) throw new Error('Maximum laptop reservation is 2 hours.');
+
+    const hoursJson = await getLaptopHours();
+    assertWithinWeeklyHours(hoursJson, data.startTime, data.endTime, 'Laptops');
+
+    // Find the lowest-numbered laptop that has no overlapping booking
+    const allLaptops = await db.select().from(laptops).orderBy(asc(laptops.number)).execute();
+    if (allLaptops.length === 0) throw new Error('No laptops are configured.');
+
+    let assigned: typeof allLaptops[number] | null = null;
+    for (const laptop of allLaptops) {
+        const conflict = await db.query.laptopBookings.findFirst({
+            where: and(
+                eq(laptopBookings.laptopId, laptop.id),
+                gt(laptopBookings.endTime, data.startTime),
+                lt(laptopBookings.startTime, data.endTime)
+            )
+        });
+        if (!conflict) {
+            assigned = laptop;
+            break;
+        }
+    }
+
+    if (!assigned) {
+        throw new Error('All laptops are booked for that time. Please choose another slot.');
+    }
+
+    await db.insert(laptopBookings).values({
+        laptopId: assigned.id,
+        userId: data.userId || null,
+        customerName: data.customerName,
+        customerEmail: data.customerEmail,
+        customerPhone: data.customerPhone,
+        idAgreed: data.idAgreed,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        status: 'pending',
+    }).execute();
+
+    revalidatePath('/');
+    revalidatePath('/admin');
+    return { success: true, laptopNumber: assigned.number };
+}
+
+export async function cancelLaptopBooking(id: number) {
+    const session = await getSession();
+    if (!session) throw new Error('Unauthorized');
+
+    await db.delete(laptopBookings).where(eq(laptopBookings.id, id)).execute();
+    revalidatePath('/');
+    revalidatePath('/admin');
+    return { success: true };
 }

@@ -1,10 +1,12 @@
-import { getAllBookings, getRooms, getSettings, getAdmins, logout, getAppointmentRequests, getAllAppointmentRequests, getPrograms } from '@/app/actions';
+import { getAllBookings, getRooms, getSettings, getAdmins, logout, getAppointmentRequests, getAllAppointmentRequests, getPrograms, getAllLaptopBookings, getLaptopHours } from '@/app/actions';
 import AdminDashboard from '@/components/AdminDashboard';
 import StaffDashboard from '@/components/StaffDashboard';
 import AppointmentRequests from '@/components/AppointmentRequests';
+import StaffLaptopBookings from '@/components/StaffLaptopBookings';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { getSession } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 import { db } from '@/db';
 import { admins } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -27,6 +29,7 @@ export default async function AdminPage() {
         
         // Fetch requests for this staff member
         const requests = await getAppointmentRequests();
+        const staffLaptopBookings = await getAllLaptopBookings();
 
         return (
             <main className="min-h-screen bg-slate-50 p-4 md:p-8">
@@ -53,20 +56,25 @@ export default async function AdminPage() {
                     </header>
                     
                     <Tabs defaultValue="hours" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 mb-8 max-w-sm">
+                        <TabsList className="grid w-full grid-cols-3 mb-8 max-w-md">
                             <TabsTrigger value="hours">My Hours</TabsTrigger>
                             <TabsTrigger value="appointments">Appointments</TabsTrigger>
+                            <TabsTrigger value="laptops">Laptops</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="hours">
-                            <StaffDashboard 
-                                officeHours={staffMember?.officeHours || ''} 
+                            <StaffDashboard
+                                officeHours={staffMember?.officeHours || ''}
                                 bio={staffMember?.bio || ''}
                             />
                         </TabsContent>
 
                         <TabsContent value="appointments">
                             <AppointmentRequests requests={requests} />
+                        </TabsContent>
+
+                        <TabsContent value="laptops">
+                            <StaffLaptopBookings bookings={staffLaptopBookings} />
                         </TabsContent>
                     </Tabs>
                 </div>
@@ -87,6 +95,8 @@ export default async function AdminPage() {
         const adminUsers = await getAdmins();
         const allAppointmentRequests = await getAllAppointmentRequests();
         const allPrograms = await getPrograms();
+        const allLaptopBookings = await getAllLaptopBookings();
+        const laptopHoursJson = await getLaptopHours();
 
         return (
             <main className="min-h-screen bg-slate-50 p-4 md:p-8">
@@ -118,6 +128,8 @@ export default async function AdminPage() {
                         admins={adminUsers}
                         appointmentRequests={allAppointmentRequests}
                         programs={allPrograms}
+                        laptopBookings={allLaptopBookings}
+                        laptopHours={laptopHoursJson}
                     />
                 </div>
             </main>

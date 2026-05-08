@@ -1,7 +1,10 @@
-import { getRooms, getAllBookings, getStaffHours, getTodaysPrograms } from './actions';
+import { getRooms, getAllBookings, getStaffHours, getTodaysPrograms, getLaptopHours, getPrograms } from './actions';
 import BookingInterface from '@/components/BookingInterface';
+import LaptopBookingInterface from '@/components/LaptopBookingInterface';
 import PublicBookings from '@/components/PublicBookings';
 import TodayDashboard from '@/components/TodayDashboard';
+import MonthlyProgrammingCalendar from '@/components/MonthlyProgrammingCalendar';
+import HomeCarousel from '@/components/HomeCarousel';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,6 +17,8 @@ export default async function Home() {
   const bookings = await getAllBookings();
   const staff = await getStaffHours();
   const todaysPrograms = await getTodaysPrograms();
+  const allPrograms = await getPrograms();
+  const laptopHours = await getLaptopHours();
 
   return (
     <main className="min-h-screen bg-white p-4 md:p-6 flex flex-col">
@@ -24,18 +29,36 @@ export default async function Home() {
         />
 
         <Tabs defaultValue="dashboard">
-            <TabsList className="grid w-full grid-cols-3 mb-4 max-w-xl">
+            <TabsList className="grid w-full grid-cols-4 mb-4 max-w-2xl">
                 <TabsTrigger value="dashboard">Today</TabsTrigger>
                 <TabsTrigger value="book">Book a Room</TabsTrigger>
+                <TabsTrigger value="laptop">Reserve a Laptop</TabsTrigger>
                 <TabsTrigger value="bookings">Current Bookings</TabsTrigger>
             </TabsList>
 
             <TabsContent value="dashboard">
-                <TodayDashboard rooms={rooms} bookings={bookings} staff={staff} programs={todaysPrograms} />
+                <HomeCarousel
+                    slides={[
+                        {
+                            key: 'today',
+                            title: 'Today',
+                            content: <TodayDashboard rooms={rooms} bookings={bookings} staff={staff} programs={todaysPrograms} />,
+                        },
+                        {
+                            key: 'month',
+                            title: 'This Month',
+                            content: <MonthlyProgrammingCalendar programs={allPrograms} />,
+                        },
+                    ]}
+                />
             </TabsContent>
 
             <TabsContent value="book">
                 <BookingInterface rooms={rooms} />
+            </TabsContent>
+
+            <TabsContent value="laptop">
+                <LaptopBookingInterface laptopHours={laptopHours} />
             </TabsContent>
 
             <TabsContent value="bookings">

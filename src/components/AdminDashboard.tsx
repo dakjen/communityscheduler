@@ -11,13 +11,92 @@ import {
     deleteBooking, createRoom, deleteRoom, updateRoom,
     createAdmin, deleteAdmin, updateAdmin,
     approveAdmin, rejectAdmin,
-    createProgram, updateProgram, deleteProgram
+    createProgram, updateProgram, deleteProgram,
+    updateLaptopHours, cancelLaptopBooking,
 } from '@/app/actions';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { Trash2, Plus, UserPlus, Shield, Pencil, Check, X, CalendarPlus, Repeat } from 'lucide-react';
+import { Trash2, Plus, UserPlus, Shield, Pencil, Check, X, CalendarPlus, Repeat, Laptop } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import AppointmentRequests from '@/components/AppointmentRequests';
+
+// Weekly hours helpers (shared with the public side)
+const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+const WEEKDAY_LABELS: Record<typeof WEEKDAY_KEYS[number], string> = {
+    mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday'
+};
+type DayHoursForm = { open: string; close: string; closed: boolean };
+type WeeklyHoursForm = Record<typeof WEEKDAY_KEYS[number], DayHoursForm>;
+
+const DEFAULT_WEEKLY_HOURS: WeeklyHoursForm = {
+    mon: { open: '09:00', close: '17:00', closed: false },
+    tue: { open: '09:00', close: '17:00', closed: false },
+    wed: { open: '09:00', close: '17:00', closed: false },
+    thu: { open: '09:00', close: '17:00', closed: false },
+    fri: { open: '09:00', close: '17:00', closed: false },
+    sat: { open: '09:00', close: '17:00', closed: false },
+    sun: { open: '09:00', close: '17:00', closed: false },
+};
+
+function parseWeeklyHoursOrDefault(raw: string | null | undefined): WeeklyHoursForm {
+    if (!raw) return { ...DEFAULT_WEEKLY_HOURS };
+    try {
+        const p = JSON.parse(raw);
+        const result = { ...DEFAULT_WEEKLY_HOURS };
+        for (const k of WEEKDAY_KEYS) {
+            if (p[k]) result[k] = { open: p[k].open || '09:00', close: p[k].close || '17:00', closed: !!p[k].closed };
+        }
+        return result;
+    } catch { return { ...DEFAULT_WEEKLY_HOURS }; }
+}
+
+function summarizeWeeklyHours(raw: string): string {
+    const wh = parseWeeklyHoursOrDefault(raw);
+    // If all open days share the same open/close, summarize compactly
+    const openDays = WEEKDAY_KEYS.filter(k => !wh[k].closed);
+    if (openDays.length === 0) return 'Closed all week';
+    const first = wh[openDays[0]];
+    const allSame = openDays.every(k => wh[k].open === first.open && wh[k].close === first.close);
+    if (allSame && openDays.length === 7) return `Daily ${first.open} – ${first.close}`;
+    if (allSame) return `${openDays.map(k => WEEKDAY_LABELS[k].slice(0,3)).join(', ')} ${first.open} – ${first.close}`;
+    return WEEKDAY_KEYS.map(k => wh[k].closed ? `${WEEKDAY_LABELS[k].slice(0,3)}: closed` : `${WEEKDAY_LABELS[k].slice(0,3)}: ${wh[k].open}-${wh[k].close}`).join(' • ');
+}
+
+function WeeklyHoursEditor({ value, onChange }: { value: WeeklyHoursForm; onChange: (v: WeeklyHoursForm) => void }) {
+    return (
+        <div className="space-y-2 rounded-md border p-3 bg-slate-50">
+            {WEEKDAY_KEYS.map(day => (
+                <div key={day} className="flex items-center gap-3">
+                    <div className="w-24 text-sm font-medium">{WEEKDAY_LABELS[day]}</div>
+                    <label className="flex items-center gap-1.5 text-xs">
+                        <input
+                            type="checkbox"
+                            checked={value[day].closed}
+                            onChange={e => onChange({ ...value, [day]: { ...value[day], closed: e.target.checked } })}
+                            className="h-3.5 w-3.5"
+                        />
+                        Closed
+                    </label>
+                    <Input
+                        type="time"
+                        value={value[day].open}
+                        onChange={e => onChange({ ...value, [day]: { ...value[day], open: e.target.value } })}
+                        disabled={value[day].closed}
+                        className="w-32"
+                    />
+                    <span className="text-xs text-slate-500">to</span>
+                    <Input
+                        type="time"
+                        value={value[day].close}
+                        onChange={e => onChange({ ...value, [day]: { ...value[day], close: e.target.value } })}
+                        disabled={value[day].closed}
+                        className="w-32"
+                    />
+                </div>
+            ))}
+        </div>
+    );
+}
 
 // ... (existing types)
 
@@ -74,10 +153,27 @@ type Program = {
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export default function AdminDashboard({ bookings, rooms, admins, appointmentRequests = [], programs = [] }: { bookings: Booking[], rooms: Room[], admins: Admin[], appointmentRequests?: any[], programs?: Program[] }) {
-    const [newRoom, setNewRoom] = useState({ name: '', capacity: '', description: '', openTime: '09:00', closeTime: '17:00' });
+type LaptopBookingRow = {
+    id: number;
+    laptopId: number;
+    laptopNumber: number | null;
+    customerName: string;
+    customerEmail: string;
+    customerPhone: string;
+    startTime: Date | string;
+    endTime: Date | string;
+    status: string | null;
+};
+
+export default function AdminDashboard({ bookings, rooms, admins, appointmentRequests = [], programs = [], laptopBookings = [], laptopHours = '' }: { bookings: Booking[], rooms: Room[], admins: Admin[], appointmentRequests?: any[], programs?: Program[], laptopBookings?: LaptopBookingRow[], laptopHours?: string }) {
+    const [newRoom, setNewRoom] = useState({ name: '', capacity: '', description: '', weeklyHours: { ...DEFAULT_WEEKLY_HOURS } });
     const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+    const [editingRoomHours, setEditingRoomHours] = useState<WeeklyHoursForm>({ ...DEFAULT_WEEKLY_HOURS });
     const [isEditRoomOpen, setIsEditRoomOpen] = useState(false);
+
+    // Laptop hours state
+    const [laptopHoursForm, setLaptopHoursForm] = useState<WeeklyHoursForm>(parseWeeklyHoursOrDefault(laptopHours));
+    const [savingLaptopHours, setSavingLaptopHours] = useState(false);
     
     const [newAdmin, setNewAdmin] = useState({ username: '', password: '', fullName: '', email: '', role: 'admin', serviceType: '' });
     const [editingAdmin, setEditingAdmin] = useState<Admin & { password?: string } | null>(null);
@@ -115,9 +211,8 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
             formData.append('name', newRoom.name);
             formData.append('capacity', newRoom.capacity);
             formData.append('description', newRoom.description);
-            formData.append('openTime', newRoom.openTime);
-            formData.append('closeTime', newRoom.closeTime);
-            
+            formData.append('weeklyHours', JSON.stringify(newRoom.weeklyHours));
+
             // Get file input and compress
             const fileInput = document.getElementById('room-image') as HTMLInputElement;
             if (fileInput && fileInput.files && fileInput.files[0]) {
@@ -126,7 +221,7 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
             }
 
             await createRoom(formData);
-            setNewRoom({ name: '', capacity: '', description: '', openTime: '09:00', closeTime: '17:00' });
+            setNewRoom({ name: '', capacity: '', description: '', weeklyHours: { ...DEFAULT_WEEKLY_HOURS } });
             if (fileInput) fileInput.value = ''; // Reset file input
             toast.success('Room created');
         } catch (e) {
@@ -143,8 +238,7 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
             formData.append('name', editingRoom.name);
             formData.append('capacity', editingRoom.capacity.toString());
             formData.append('description', editingRoom.description || '');
-            formData.append('openTime', editingRoom.openTime);
-            formData.append('closeTime', editingRoom.closeTime);
+            formData.append('weeklyHours', JSON.stringify(editingRoomHours));
             
             // Get file input and compress
             const fileInput = document.getElementById('edit-room-image') as HTMLInputElement;
@@ -329,11 +423,34 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
         return 'Recurring';
     };
 
+    const handleSaveLaptopHours = async () => {
+        setSavingLaptopHours(true);
+        try {
+            await updateLaptopHours(JSON.stringify(laptopHoursForm));
+            toast.success('Laptop hours updated');
+        } catch (e: any) {
+            toast.error(e.message || 'Failed to save hours');
+        } finally {
+            setSavingLaptopHours(false);
+        }
+    };
+
+    const handleCancelLaptopBooking = async (id: number) => {
+        if (!confirm('Cancel this laptop booking?')) return;
+        try {
+            await cancelLaptopBooking(id);
+            toast.success('Booking cancelled');
+        } catch (e: any) {
+            toast.error(e.message || 'Failed to cancel');
+        }
+    };
+
     return (
         <Tabs defaultValue="bookings" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-8">
+            <TabsList className="grid w-full grid-cols-6 mb-8">
                 <TabsTrigger value="bookings">Bookings</TabsTrigger>
                 <TabsTrigger value="rooms">Rooms</TabsTrigger>
+                <TabsTrigger value="laptops">Laptops</TabsTrigger>
                 <TabsTrigger value="programming">Programming</TabsTrigger>
                 <TabsTrigger value="admins">Users</TabsTrigger>
                 <TabsTrigger value="requests">Requests ({pendingRequests.length})</TabsTrigger>
@@ -414,25 +531,9 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                         />
                                     </div>
                                 </div>
-                                <div className="flex gap-4">
-                                    <div className="space-y-2 flex-1">
-                                        <Label>Open Time</Label>
-                                        <Input 
-                                            type="time"
-                                            value={newRoom.openTime} 
-                                            onChange={e => setNewRoom({...newRoom, openTime: e.target.value})}
-                                            required 
-                                        />
-                                    </div>
-                                    <div className="space-y-2 flex-1">
-                                        <Label>Close Time</Label>
-                                        <Input 
-                                            type="time"
-                                            value={newRoom.closeTime} 
-                                            onChange={e => setNewRoom({...newRoom, closeTime: e.target.value})}
-                                            required 
-                                        />
-                                    </div>
+                                <div className="space-y-2">
+                                    <Label>Weekly Hours</Label>
+                                    <WeeklyHoursEditor value={newRoom.weeklyHours} onChange={(v) => setNewRoom({...newRoom, weeklyHours: v})} />
                                 </div>
                                 <div className="flex gap-4">
                                     <div className="space-y-2 flex-1">
@@ -474,14 +575,16 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                                     Capacity: {room.capacity} • {room.description}
                                                 </p>
                                                 <p className="text-xs text-slate-500">
-                                                    Hours: {room.openTime} - {room.closeTime}
+                                                    Hours: {summarizeWeeklyHours((room as any).weeklyHours || '')}
                                                 </p>
                                             </div>
                                         </div>
                                         <div className="flex gap-2">
                                             <Dialog open={isEditRoomOpen && editingRoom?.id === room.id} onOpenChange={(open) => {
-                                                if (open) setEditingRoom(room);
-                                                else {
+                                                if (open) {
+                                                    setEditingRoom(room);
+                                                    setEditingRoomHours(parseWeeklyHoursOrDefault((room as any).weeklyHours));
+                                                } else {
                                                     setEditingRoom(null);
                                                     setIsEditRoomOpen(false);
                                                 }
@@ -489,6 +592,7 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                                 <DialogTrigger asChild>
                                                     <Button variant="ghost" size="icon" onClick={() => {
                                                         setEditingRoom(room);
+                                                        setEditingRoomHours(parseWeeklyHoursOrDefault((room as any).weeklyHours));
                                                         setIsEditRoomOpen(true);
                                                     }}>
                                                         <Pencil className="h-4 w-4 text-slate-500" />
@@ -519,25 +623,9 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                                                     />
                                                                 </div>
                                                             </div>
-                                                            <div className="flex gap-4">
-                                                                <div className="space-y-2 flex-1">
-                                                                    <Label>Open Time</Label>
-                                                                    <Input 
-                                                                        type="time"
-                                                                        value={editingRoom.openTime} 
-                                                                        onChange={e => setEditingRoom({...editingRoom, openTime: e.target.value})}
-                                                                        required 
-                                                                    />
-                                                                </div>
-                                                                <div className="space-y-2 flex-1">
-                                                                    <Label>Close Time</Label>
-                                                                    <Input 
-                                                                        type="time"
-                                                                        value={editingRoom.closeTime} 
-                                                                        onChange={e => setEditingRoom({...editingRoom, closeTime: e.target.value})}
-                                                                        required 
-                                                                    />
-                                                                </div>
+                                                            <div className="space-y-2">
+                                                                <Label>Weekly Hours</Label>
+                                                                <WeeklyHoursEditor value={editingRoomHours} onChange={setEditingRoomHours} />
                                                             </div>
                                                             <div className="space-y-2">
                                                                 <Label>Description</Label>
@@ -564,6 +652,59 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                     </div>
                                 ))}
                             </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </TabsContent>
+
+            {/* --- LAPTOPS TAB --- */}
+            <TabsContent value="laptops">
+                <div className="grid gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Laptop Hours</CardTitle>
+                            <CardDescription>Weekly schedule shared by all 10 laptops.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <WeeklyHoursEditor value={laptopHoursForm} onChange={setLaptopHoursForm} />
+                            <Button onClick={handleSaveLaptopHours} disabled={savingLaptopHours}>
+                                {savingLaptopHours ? 'Saving...' : 'Save Laptop Hours'}
+                            </Button>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Laptop Bookings</CardTitle>
+                            <CardDescription>All current and upcoming laptop reservations with assigned laptop number.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {laptopBookings.length === 0 ? (
+                                <p className="text-muted-foreground text-center py-8">No laptop bookings yet.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {laptopBookings.map(b => (
+                                        <div key={b.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50">
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-blue-50 p-2 rounded-md flex flex-col items-center justify-center min-w-[3rem]">
+                                                    <Laptop className="h-4 w-4 text-blue-600" />
+                                                    <span className="text-xs font-bold text-blue-700">#{b.laptopNumber ?? '?'}</span>
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-medium">{b.customerName}</h4>
+                                                    <p className="text-xs text-muted-foreground">{b.customerEmail} • {b.customerPhone}</p>
+                                                    <p className="text-sm font-semibold text-slate-700">
+                                                        {format(new Date(b.startTime), 'MMM d, h:mm a')} – {format(new Date(b.endTime), 'h:mm a')}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <Button variant="ghost" size="icon" onClick={() => handleCancelLaptopBooking(b.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
