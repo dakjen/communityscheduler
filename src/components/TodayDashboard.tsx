@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, isToday } from 'date-fns';
 
@@ -24,6 +23,10 @@ const SERVICES = [
     {
         title: 'Room Booking',
         description: 'Book a room for your event or meeting at the PCC Building.',
+    },
+    {
+        title: 'Laptop Reservation',
+        description: 'Reserve a laptop for up to 2 hours. Leave your ID or wallet with the PCC admin to check it out — items returned when the laptop is returned.',
     },
 ];
 
@@ -136,15 +139,6 @@ export default function TodayDashboard({
     staff: StaffMember[];
     programs?: Program[];
 }) {
-    const [activeService, setActiveService] = useState(0);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setActiveService((prev) => (prev + 1) % SERVICES.length);
-        }, 5000);
-        return () => clearInterval(interval);
-    }, []);
-
     const today = new Date();
     const todayStr = format(today, 'EEEE, MMMM d, yyyy');
 
@@ -184,24 +178,19 @@ export default function TodayDashboard({
                 <p className="text-sm text-gray-400">Today&apos;s Schedule</p>
             </div>
 
-            {/* Services Banner */}
-            <div className="bg-gray-800 rounded-lg p-4 text-white overflow-hidden">
-                <div className="flex items-center justify-between">
-                    <div className="min-w-0">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-0.5">Our Services</p>
-                        <h3 className="text-lg font-semibold transition-all duration-500">{SERVICES[activeService].title}</h3>
-                        <p className="text-sm text-gray-300 mt-0.5 transition-all duration-500">{SERVICES[activeService].description}</p>
-                    </div>
-                    <div className="flex gap-1.5 ml-6 shrink-0">
-                        {SERVICES.map((_, i) => (
-                            <div
-                                key={i}
-                                className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                                    i === activeService ? 'bg-white w-5' : 'bg-gray-600'
-                                }`}
-                            />
-                        ))}
-                    </div>
+            {/* Services row — static cards across the top */}
+            <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Our Services</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+                    {SERVICES.map((s) => (
+                        <div
+                            key={s.title}
+                            className="bg-gray-800 text-white rounded-md p-2.5 flex flex-col gap-1"
+                        >
+                            <h3 className="text-xs font-semibold leading-tight">{s.title}</h3>
+                            <p className="text-[11px] text-gray-300 leading-snug">{s.description}</p>
+                        </div>
+                    ))}
                 </div>
             </div>
 

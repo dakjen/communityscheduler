@@ -177,7 +177,24 @@ export default function LaptopBookingInterface({ laptopHours }: { laptopHours: s
     const todayHours = date ? getDayHours(laptopHours, date) : null;
 
     return (
-        <div className="grid lg:grid-cols-12 gap-8">
+        <div className="space-y-6">
+            <Card className="bg-blue-50/40 border-blue-200">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Laptop Use</CardTitle>
+                    <CardDescription>How laptop reservations work at the PCC.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ul className="text-sm text-slate-700 space-y-1.5 list-disc pl-5">
+                        <li>Reservations are limited to <span className="font-medium">{MAX_HOURS} hours</span> per session.</li>
+                        <li>10 laptops are available; the back end auto-assigns you one when you reserve. You&apos;ll see the assigned laptop number on confirmation.</li>
+                        <li>Bring a valid <span className="font-medium">ID or wallet</span> to the PCC admin desk to check out your laptop.</li>
+                        <li>Your items will be returned to you once the laptop is returned.</li>
+                        <li>Please return the laptop on time so the next person can use it.</li>
+                    </ul>
+                </CardContent>
+            </Card>
+
+            <div className="grid lg:grid-cols-12 gap-8">
             {/* LEFT: Date */}
             <div className="lg:col-span-4 space-y-6">
                 <Card>
@@ -306,7 +323,7 @@ export default function LaptopBookingInterface({ laptopHours }: { laptopHours: s
                                         required
                                     />
                                     <span className="text-sm text-slate-700">
-                                        I agree to give my ID or wallet to the PCC admin in order to receive and use the laptop.
+                                        I agree to give my ID or wallet to the PCC admin in order to receive and use the laptop. My items will be returned to me once the laptop is returned.
                                     </span>
                                 </label>
 
@@ -318,6 +335,7 @@ export default function LaptopBookingInterface({ laptopHours }: { laptopHours: s
                         )}
                     </CardContent>
                 </Card>
+            </div>
             </div>
         </div>
     );

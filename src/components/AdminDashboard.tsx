@@ -35,7 +35,7 @@ const DEFAULT_WEEKLY_HOURS: WeeklyHoursForm = {
     thu: { open: '09:00', close: '17:00', closed: false },
     fri: { open: '09:00', close: '17:00', closed: false },
     sat: { open: '09:00', close: '17:00', closed: false },
-    sun: { open: '09:00', close: '17:00', closed: false },
+    sun: { open: '09:00', close: '17:00', closed: true },
 };
 
 function parseWeeklyHoursOrDefault(raw: string | null | undefined): WeeklyHoursForm {
