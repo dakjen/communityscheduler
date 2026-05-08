@@ -5,8 +5,8 @@ import { format, isToday } from 'date-fns';
 
 const SERVICES = [
     {
-        title: 'Public Computer Access',
-        description: 'Free access to computers with internet and basic software.',
+        title: 'Laptop & Computer Access',
+        description: 'Free public computers, plus reservable laptops for up to 2 hours. Leave your ID or wallet with the PCC admin to check out a laptop — items returned when the laptop is returned.',
     },
     {
         title: 'Printing & Copying',
@@ -23,10 +23,6 @@ const SERVICES = [
     {
         title: 'Room Booking',
         description: 'Book a room for your event or meeting at the PCC Building.',
-    },
-    {
-        title: 'Laptop Reservation',
-        description: 'Reserve a laptop for up to 2 hours. Leave your ID or wallet with the PCC admin to check it out — items returned when the laptop is returned.',
     },
 ];
 
@@ -181,7 +177,7 @@ export default function TodayDashboard({
             {/* Services row — static cards across the top */}
             <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Our Services</p>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
                     {SERVICES.map((s) => (
                         <div
                             key={s.title}
