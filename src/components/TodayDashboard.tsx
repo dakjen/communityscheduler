@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, isToday } from 'date-fns';
+import { parseSchedule, resolveDaySlots } from '@/lib/availability';
 
 const SERVICES = [
     {
@@ -76,31 +77,10 @@ type Program = {
     attendees: string;
 };
 
-const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
 function getStaffScheduleToday(staff: StaffMember): string[] | null {
-    if (!staff.officeHours) return null;
-
-    try {
-        const schedule = JSON.parse(staff.officeHours);
-        const today = new Date();
-        const todayDateStr = format(today, 'yyyy-MM-dd');
-        const dayName = DAYS_OF_WEEK[today.getDay()];
-
-        if (schedule[todayDateStr]) {
-            const slots = schedule[todayDateStr];
-            return slots.length > 0 ? slots : null;
-        }
-
-        if (schedule[dayName]) {
-            const slots = schedule[dayName];
-            return slots.length > 0 ? slots : null;
-        }
-
-        return null;
-    } catch {
-        return null;
-    }
+    // Blackout-aware: time-off ranges override recurring/specific availability.
+    const slots = resolveDaySlots(parseSchedule(staff.officeHours), new Date());
+    return slots.length > 0 ? slots : null;
 }
 
 function formatTimeRange(slots: string[]): string {

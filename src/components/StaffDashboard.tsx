@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { updateOfficeHours } from '@/app/actions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { Loader2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Repeat } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Repeat, Plane, Plus, X } from 'lucide-react';
 import { format, setHours, setMinutes, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { Blackout } from '@/lib/availability';
 
 const START_HOUR = 8;
 const END_HOUR = 18; // 6 PM
@@ -40,6 +41,12 @@ export default function StaffDashboard({ officeHours, bio }: { officeHours: stri
     const [schedule, setSchedule] = useState<Schedule>({});
     const [bioText, setBioText] = useState(bio || '');
     const [isSaving, setIsSaving] = useState(false);
+
+    // Time off / blackout ranges — override all recurring & specific availability.
+    const [blackouts, setBlackouts] = useState<Blackout[]>([]);
+    const [boStart, setBoStart] = useState('');
+    const [boEnd, setBoEnd] = useState('');
+    const [boReason, setBoReason] = useState('');
     
     // Mode: 'default' (recurring) or 'specific' (specific dates)
     const [mode, setMode] = useState<'default' | 'specific'>('default');
@@ -64,15 +71,49 @@ export default function StaffDashboard({ officeHours, bio }: { officeHours: stri
     useEffect(() => {
         try {
             if (officeHours && officeHours.startsWith('{')) {
-                setSchedule(JSON.parse(officeHours));
+                const parsed = JSON.parse(officeHours);
+                const { _blackouts, ...rest } = parsed;
+                setSchedule(rest);
+                setBlackouts(Array.isArray(_blackouts) ? _blackouts : []);
             } else {
                 setSchedule({});
+                setBlackouts([]);
             }
         } catch (e) {
             setSchedule({});
+            setBlackouts([]);
         }
         setBioText(bio || '');
     }, [officeHours, bio]);
+
+    const addBlackout = () => {
+        if (!boStart) {
+            toast.error('Pick a start date');
+            return;
+        }
+        const end = boEnd || boStart;
+        if (end < boStart) {
+            toast.error('End date is before the start date');
+            return;
+        }
+        const next = [...blackouts, { start: boStart, end, reason: boReason.trim() || undefined }]
+            .sort((a, b) => a.start.localeCompare(b.start));
+        setBlackouts(next);
+        setBoStart('');
+        setBoEnd('');
+        setBoReason('');
+    };
+
+    const removeBlackout = (index: number) => {
+        setBlackouts(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const formatBlackoutRange = (b: Blackout) => {
+        const start = parseDate(b.start);
+        const end = parseDate(b.end);
+        if (b.start === b.end) return format(start, 'EEE, MMM d, yyyy');
+        return `${format(start, 'MMM d')} – ${format(end, 'MMM d, yyyy')}`;
+    };
 
     const toggleSlot = (key: string, rawTime: string) => {
         setSchedule(prev => {
@@ -104,7 +145,8 @@ export default function StaffDashboard({ officeHours, bio }: { officeHours: stri
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            await updateOfficeHours(JSON.stringify(schedule), bioText);
+            const payload = { ...schedule, ...(blackouts.length ? { _blackouts: blackouts } : {}) };
+            await updateOfficeHours(JSON.stringify(payload), bioText);
             toast.success('Profile updated');
         } catch (e) {
             toast.error('Failed to update');
@@ -293,6 +335,86 @@ export default function StaffDashboard({ officeHours, bio }: { officeHours: stri
                             </div>
                         </div>
                     )}
+                </div>
+
+                {/* Time Off / Blackout dates */}
+                <div className="space-y-3 border-t pt-6">
+                    <div>
+                        <h3 className="font-semibold text-base flex items-center gap-2">
+                            <Plane className="h-4 w-4" /> Time Off / Blackout Dates
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                            Block out vacations or days away. On these dates you&apos;ll show as unavailable,
+                            ignoring your recurring and specific hours.
+                        </p>
+                    </div>
+
+                    {blackouts.length > 0 && (
+                        <ul className="space-y-2">
+                            {blackouts.map((b, i) => (
+                                <li
+                                    key={`${b.start}-${b.end}-${i}`}
+                                    className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2"
+                                >
+                                    <div className="min-w-0">
+                                        <div className="text-sm font-medium">{formatBlackoutRange(b)}</div>
+                                        {b.reason && (
+                                            <div className="text-xs text-muted-foreground truncate">{b.reason}</div>
+                                        )}
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-muted-foreground hover:text-destructive flex-shrink-0"
+                                        onClick={() => removeBlackout(i)}
+                                        aria-label="Remove time off"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                        <div className="space-y-1">
+                            <Label htmlFor="bo-start" className="text-xs">From</Label>
+                            <Input
+                                id="bo-start"
+                                type="date"
+                                value={boStart}
+                                onChange={(e) => setBoStart(e.target.value)}
+                                className="w-full sm:w-auto"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="bo-end" className="text-xs">To <span className="text-muted-foreground">(optional)</span></Label>
+                            <Input
+                                id="bo-end"
+                                type="date"
+                                value={boEnd}
+                                min={boStart || undefined}
+                                onChange={(e) => setBoEnd(e.target.value)}
+                                className="w-full sm:w-auto"
+                            />
+                        </div>
+                        <div className="space-y-1 flex-1">
+                            <Label htmlFor="bo-reason" className="text-xs">Reason <span className="text-muted-foreground">(optional, private)</span></Label>
+                            <Input
+                                id="bo-reason"
+                                value={boReason}
+                                onChange={(e) => setBoReason(e.target.value)}
+                                placeholder="e.g. Vacation"
+                            />
+                        </div>
+                        <Button type="button" variant="secondary" onClick={addBlackout}>
+                            <Plus className="mr-1 h-4 w-4" /> Add
+                        </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Leave <strong>To</strong> empty for a single day. Remember to <strong>Save Changes</strong> above.
+                    </p>
                 </div>
             </CardContent>
         </Card>

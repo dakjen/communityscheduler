@@ -12,6 +12,7 @@ import { submitAppointmentRequest } from '@/app/actions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, startOfDay, addMinutes, parse, isBefore, isAfter } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { parseSchedule, resolveDaySlots } from '@/lib/availability';
 import { Loader2 } from 'lucide-react';
 
 interface StaffMember {
@@ -42,35 +43,18 @@ export function RequestAppointmentForm({ staffMembers }: { staffMembers: StaffMe
         const staff = staffMembers.find(s => s.username === selectedStaff);
         if (!staff || !staff.officeHours) return [];
 
-        try {
-            const schedule = JSON.parse(staff.officeHours);
-            const dayName = format(date, 'EEEE'); // e.g., "Monday"
-            const dateKey = format(date, 'yyyy-MM-dd'); // e.g., "2023-10-27"
-            
-            // Check for specific date override first
-            let rawSlots = schedule[dateKey];
-            
-            // If not found, use default day schedule
-            if (rawSlots === undefined) {
-                rawSlots = schedule[dayName] || [];
-            }
-            
-            // Sort raw slots
-            const sorted = rawSlots.sort();
+        // Blackout-aware: time-off ranges resolve to no available slots for that date.
+        const sorted = [...resolveDaySlots(parseSchedule(staff.officeHours), date)].sort();
 
-            return sorted.map((time: string) => {
-                const [h, m] = time.split(':').map(Number);
-                const d = new Date();
-                d.setHours(h, m, 0, 0);
-                return {
-                    value: time,
-                    label: format(d, 'h:mm a')
-                };
-            });
-        } catch (e) {
-            console.error("Error parsing schedule", e);
-            return [];
-        }
+        return sorted.map((time: string) => {
+            const [h, m] = time.split(':').map(Number);
+            const d = new Date();
+            d.setHours(h, m, 0, 0);
+            return {
+                value: time,
+                label: format(d, 'h:mm a')
+            };
+        });
     }, [selectedStaff, date, staffMembers]);
 
     const handleSlotClick = (slotValue: string) => {
