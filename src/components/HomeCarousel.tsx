@@ -1,20 +1,34 @@
 'use client';
 
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Slide = { key: string; title: string; content: ReactNode };
 
-export default function HomeCarousel({ slides }: { slides: Slide[] }) {
+export default function HomeCarousel({
+    slides,
+    autoAdvanceMs = 6000,
+}: { slides: Slide[]; autoAdvanceMs?: number }) {
     const [index, setIndex] = useState(0);
     const touchStartX = useRef<number | null>(null);
+    const pointerStartX = useRef<number | null>(null);
     const SWIPE_THRESHOLD = 50;
 
+    useEffect(() => {
+        if (!autoAdvanceMs || autoAdvanceMs <= 0) return;
+        if (slides.length < 2) return;
+        const id = setInterval(() => {
+            setIndex(prev => (prev + 1) % slides.length);
+        }, autoAdvanceMs);
+        return () => clearInterval(id);
+    }, [autoAdvanceMs, slides.length]);
+
     const go = (next: number) => {
-        if (next < 0 || next >= slides.length) return;
-        setIndex(next);
+        const n = slides.length;
+        if (n === 0) return;
+        setIndex(((next % n) + n) % n);
     };
 
     const handleTouchStart = (e: React.TouchEvent) => {
@@ -29,6 +43,19 @@ export default function HomeCarousel({ slides }: { slides: Slide[] }) {
         touchStartX.current = null;
     };
 
+    const handlePointerDown = (e: React.PointerEvent) => {
+        if (e.pointerType === 'touch') return;
+        pointerStartX.current = e.clientX;
+    };
+    const handlePointerUp = (e: React.PointerEvent) => {
+        if (pointerStartX.current == null) return;
+        const dx = e.clientX - pointerStartX.current;
+        if (Math.abs(dx) > SWIPE_THRESHOLD) {
+            go(index + (dx < 0 ? 1 : -1));
+        }
+        pointerStartX.current = null;
+    };
+
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
@@ -36,7 +63,6 @@ export default function HomeCarousel({ slides }: { slides: Slide[] }) {
                     variant="ghost"
                     size="icon"
                     onClick={() => go(index - 1)}
-                    disabled={index === 0}
                     aria-label="Previous"
                 >
                     <ChevronLeft className="h-5 w-5" />
@@ -61,7 +87,6 @@ export default function HomeCarousel({ slides }: { slides: Slide[] }) {
                     variant="ghost"
                     size="icon"
                     onClick={() => go(index + 1)}
-                    disabled={index === slides.length - 1}
                     aria-label="Next"
                 >
                     <ChevronRight className="h-5 w-5" />
@@ -69,9 +94,12 @@ export default function HomeCarousel({ slides }: { slides: Slide[] }) {
             </div>
 
             <div
-                className="overflow-hidden"
+                className="overflow-hidden touch-pan-y select-none cursor-grab active:cursor-grabbing"
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
+                onPointerDown={handlePointerDown}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={() => { pointerStartX.current = null; }}
             >
                 <div
                     className="flex transition-transform duration-300 ease-out"

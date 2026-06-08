@@ -3,16 +3,15 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 
 interface NavBarProps {
   title?: string;
   description?: string;
 }
 
-export function NavBar({ 
-  title = "Community Resources", 
-  description = "Connecting you with what you need" 
+export function NavBar({
+  title = "Community Resources",
+  description = "Connecting you with what you need"
 }: NavBarProps) {
   const pathname = usePathname();
 
@@ -31,14 +30,6 @@ export function NavBar({
         <Link href="/services">
           <Button variant={pathname === '/services' ? 'secondary' : 'ghost'}>Book a Service</Button>
         </Link>
-        <SignedOut>
-          <SignInButton mode="modal">
-            <Button variant="outline" disabled>Sign In</Button>
-          </SignInButton>
-        </SignedOut>
-        <SignedIn>
-          <UserButton />
-        </SignedIn>
       </div>
     </header>
   );

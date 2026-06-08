@@ -167,51 +167,48 @@ export default function TodayDashboard({
     const sortedPrograms = [...programs].sort((a, b) => a.time.localeCompare(b.time));
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-3">
             {/* Header */}
-            <div className="text-center py-1">
-                <h1 className="text-2xl font-semibold tracking-tight text-gray-800">{todayStr}</h1>
-                <p className="text-sm text-gray-400">Today&apos;s Schedule</p>
+            <div className="text-center">
+                <h1 className="text-lg font-semibold tracking-tight text-gray-800 leading-tight">{todayStr}</h1>
+                <p className="text-xs text-gray-400 leading-tight">Today&apos;s Schedule</p>
             </div>
 
             {/* Services row — static cards across the top */}
-            <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Our Services</p>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-                    {SERVICES.map((s) => (
-                        <div
-                            key={s.title}
-                            className="bg-gray-800 text-white rounded-md p-2.5 flex flex-col gap-1"
-                        >
-                            <h3 className="text-xs font-semibold leading-tight">{s.title}</h3>
-                            <p className="text-[11px] text-gray-300 leading-snug">{s.description}</p>
-                        </div>
-                    ))}
-                </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-1.5">
+                {SERVICES.map((s) => (
+                    <div
+                        key={s.title}
+                        className="bg-primary text-primary-foreground rounded-md px-2 py-1.5 flex flex-col gap-0.5"
+                    >
+                        <h3 className="text-[11px] font-semibold leading-tight">{s.title}</h3>
+                        <p className="text-[10px] text-primary-foreground/80 leading-snug">{s.description}</p>
+                    </div>
+                ))}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {/* Room Bookings */}
                 <Card className="border">
-                    <CardHeader className="pb-3 border-b">
-                        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <CardHeader className="pb-2 pt-3 border-b">
+                        <CardTitle className="text-sm font-semibold flex items-center gap-2">
                             <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#b00d0f' }} />
                             Room Bookings
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-4">
+                    <CardContent className="pt-2 pb-3">
                         {rooms.length === 0 ? (
                             <p className="text-gray-400 text-sm">No rooms configured.</p>
                         ) : (
-                            <div className="space-y-3">
+                            <div className="space-y-1.5">
                                 {rooms.map((room) => {
                                     const roomBookings = bookingsByRoom.get(room.id) || [];
                                     const isBooked = roomBookings.length > 0;
 
                                     return (
-                                        <div key={room.id} className="border rounded-lg p-3">
+                                        <div key={room.id} className="border rounded-md px-2 py-1.5">
                                             <div className="flex items-center justify-between mb-1">
-                                                <h3 className="text-base font-semibold text-gray-800">{room.name}</h3>
+                                                <h3 className="text-sm font-semibold text-gray-800">{room.name}</h3>
                                                 <span
                                                     className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                                                         isBooked
@@ -223,22 +220,22 @@ export default function TodayDashboard({
                                                 </span>
                                             </div>
                                             {isBooked ? (
-                                                <ul className="space-y-2 mt-2">
+                                                <ul className="space-y-1 mt-1">
                                                     {roomBookings.map((b) => (
-                                                        <li key={b.id} className="bg-blue-50 rounded-md p-2.5 border border-blue-100">
-                                                            <div className="text-sm font-semibold text-blue-800">
+                                                        <li key={b.id} className="bg-blue-50 rounded px-2 py-1 border border-blue-100">
+                                                            <div className="text-xs font-semibold text-blue-800">
                                                                 {format(new Date(b.startTime), 'h:mm a')} –{' '}
                                                                 {format(new Date(b.endTime), 'h:mm a')}
                                                             </div>
-                                                            <p className="text-sm text-gray-700 mt-0.5">{b.purpose}</p>
-                                                            <p className="text-xs text-gray-400 mt-0.5">{b.customerName}</p>
+                                                            <p className="text-xs text-gray-700">{b.purpose}</p>
+                                                            <p className="text-[10px] text-gray-400">{b.customerName}</p>
                                                         </li>
                                                     ))}
                                                 </ul>
                                             ) : (() => {
                                                 const todayH = getTodayHours(room.weeklyHours);
                                                 return (
-                                                    <p className="text-sm text-gray-400">
+                                                    <p className="text-xs text-gray-400">
                                                         {todayH ? `Open ${formatTime(todayH.open)} – ${formatTime(todayH.close)}` : 'Closed today'}
                                                     </p>
                                                 );
@@ -253,35 +250,35 @@ export default function TodayDashboard({
 
                 {/* Staff Available */}
                 <Card className="border">
-                    <CardHeader className="pb-3 border-b">
-                        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <CardHeader className="pb-2 pt-3 border-b">
+                        <CardTitle className="text-sm font-semibold flex items-center gap-2">
                             <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#431e1e' }} />
                             Staff Available
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-4">
+                    <CardContent className="pt-2 pb-3">
                         {staffToday.length === 0 ? (
                             <p className="text-gray-400 text-sm">No staff scheduled for today.</p>
                         ) : (
-                            <div className="space-y-3">
+                            <div className="space-y-1.5">
                                 {staffToday.map((s) => (
-                                    <div key={s.username} className="border rounded-lg p-3">
+                                    <div key={s.username} className="border rounded-md px-2 py-1.5">
                                         <div className="flex items-center justify-between">
-                                            <h3 className="text-base font-semibold text-gray-800">
+                                            <h3 className="text-sm font-semibold text-gray-800">
                                                 {s.fullName || s.username}
                                             </h3>
-                                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
                                                 {s.role === 'HTH' ? 'SERVICES' : 'STAFF'}
                                             </span>
                                         </div>
                                         {s.serviceType && (
-                                            <p className="text-sm text-emerald-600 mt-1">{s.serviceType}</p>
+                                            <p className="text-xs text-emerald-600">{s.serviceType}</p>
                                         )}
-                                        <p className="text-sm font-semibold text-gray-600 mt-1">
+                                        <p className="text-xs font-semibold text-gray-600">
                                             {formatTimeRange(s.todaySlots)}
                                         </p>
                                         {s.bio && (
-                                            <p className="text-xs text-gray-400 mt-0.5">{s.bio}</p>
+                                            <p className="text-[10px] text-gray-400">{s.bio}</p>
                                         )}
                                     </div>
                                 ))}
@@ -292,19 +289,19 @@ export default function TodayDashboard({
 
                 {/* Programming */}
                 <Card className="border">
-                    <CardHeader className="pb-3 border-b">
-                        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <CardHeader className="pb-2 pt-3 border-b">
+                        <CardTitle className="text-sm font-semibold flex items-center gap-2">
                             <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#3b3b3b' }} />
                             Programming
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-4">
+                    <CardContent className="pt-2 pb-3">
                         {sortedPrograms.length === 0 ? (
                             <p className="text-gray-400 text-sm">No programs scheduled for today.</p>
                         ) : (
-                            <div className="space-y-3">
+                            <div className="space-y-1.5">
                                 {sortedPrograms.map((p) => (
-                                    <div key={p.id} className="border rounded-lg p-3">
+                                    <div key={p.id} className="border rounded-md px-2 py-1.5">
                                         <div className="flex items-center justify-between mb-1">
                                             <h3 className="text-base font-semibold text-gray-800">{p.name}</h3>
                                             {p.isRecurring && (
