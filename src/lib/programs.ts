@@ -9,6 +9,9 @@ export type Program = {
     isRecurring: boolean;
     recurrencePattern: string | null;
     attendees: string;
+    roomId?: number | null;
+    endTime?: string | null; // HH:mm
+    roomName?: string | null;
 };
 
 // Does a program occur on the given day — honoring one-off dates and

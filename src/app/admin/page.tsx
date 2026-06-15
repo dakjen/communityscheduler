@@ -10,7 +10,8 @@ import { redirect } from 'next/navigation';
 import { db } from '@/db';
 import { admins } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PersistentTabs } from '@/components/PersistentTabs';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +56,7 @@ export default async function AdminPage() {
                         </div>
                     </header>
                     
-                    <Tabs defaultValue="hours" className="w-full">
+                    <PersistentTabs defaultValue="hours" values={['hours', 'appointments', 'laptops']} className="w-full">
                         <TabsList className="grid w-full grid-cols-3 mb-8 max-w-md">
                             <TabsTrigger value="hours">My Hours</TabsTrigger>
                             <TabsTrigger value="appointments">Appointments</TabsTrigger>
@@ -76,7 +77,7 @@ export default async function AdminPage() {
                         <TabsContent value="laptops">
                             <StaffLaptopBookings bookings={staffLaptopBookings} />
                         </TabsContent>
-                    </Tabs>
+                    </PersistentTabs>
                 </div>
             </main>
         );

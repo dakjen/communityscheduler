@@ -47,10 +47,19 @@ type TimeSlot = {
   isSelected: boolean;
 };
 
-export default function BookingInterface({ rooms }: { rooms: Room[] }) {
+export default function BookingInterface({
+  rooms,
+  lockedRoomId,
+  requestMode = false,
+}: {
+  rooms: Room[];
+  lockedRoomId?: number; // when set, this room is pre-selected and the picker is hidden
+  requestMode?: boolean; // adjusts copy to "request" wording
+}) {
   const { user } = useUser();
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [selectedRoom, setSelectedRoom] = useState<string>('');
+  const [selectedRoom, setSelectedRoom] = useState<string>(lockedRoomId ? String(lockedRoomId) : '');
+  const submitLabel = requestMode ? 'Submit Request' : 'Confirm Booking';
   
   // Time Selection State
   const [selectionStart, setSelectionStart] = useState<Date | null>(null);
@@ -214,7 +223,7 @@ export default function BookingInterface({ rooms }: { rooms: Room[] }) {
         endTime: finalEnd,
       });
 
-      toast.success('Booking successful!');
+      toast.success(requestMode ? 'Request submitted! It will be confirmed once approved.' : 'Booking successful!');
       // Reset form (keep name/email if desired)
       setSelectionStart(null);
       setSelectionEnd(null);
@@ -242,7 +251,7 @@ export default function BookingInterface({ rooms }: { rooms: Room[] }) {
       <div className="lg:col-span-4 space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>1. Select Date & Room</CardTitle>
+            <CardTitle>{lockedRoomId ? '1. Select a Date' : '1. Select Date & Room'}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex justify-center">
@@ -254,21 +263,29 @@ export default function BookingInterface({ rooms }: { rooms: Room[] }) {
                 disabled={(date) => date < startOfDay(new Date())}
               />
             </div>
-            
+
             <div className="space-y-2">
-                <Label>Select Room</Label>
-                <Select value={selectedRoom} onValueChange={setSelectedRoom}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Choose a room" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {rooms.map((room) => (
-                            <SelectItem key={room.id} value={room.id.toString()}>
-                                {room.name} (Cap: {room.capacity})
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                {lockedRoomId ? (
+                    <Label>
+                        Room: {rooms.find(r => r.id.toString() === selectedRoom)?.name ?? 'Community Room'}
+                    </Label>
+                ) : (
+                    <>
+                        <Label>Select Room</Label>
+                        <Select value={selectedRoom} onValueChange={setSelectedRoom}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Choose a room" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {rooms.map((room) => (
+                                    <SelectItem key={room.id} value={room.id.toString()}>
+                                        {room.name} (Cap: {room.capacity})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </>
+                )}
                 {selectedRoom && (() => {
                     const room = rooms.find(r => r.id.toString() === selectedRoom);
                     return (
@@ -432,7 +449,7 @@ export default function BookingInterface({ rooms }: { rooms: Room[] }) {
 
               <Button type="submit" className="w-full" disabled={isSubmitting || !selectionStart}>
                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Confirm Booking
+                {submitLabel}
               </Button>
             </form>
           </CardContent>

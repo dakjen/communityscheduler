@@ -52,6 +52,8 @@ export const programs = pgTable('programs', {
   isRecurring: boolean('is_recurring').default(false).notNull(),
   recurrencePattern: text('recurrence_pattern'), // JSON: { frequency: 'daily'|'weekly'|'monthly', daysOfWeek?: number[], endDate?: string }
   attendees: varchar('attendees', { length: 256 }).notNull(), // e.g. "Staff", "HTH", "Staff, HTH", "All"
+  roomId: integer('room_id').references(() => rooms.id), // assigned room — reserves the room and blocks booking during the program
+  endTime: varchar('end_time', { length: 50 }), // HH:mm — when the room is freed (required in-app when a room is assigned)
   createdAt: timestamp('created_at').defaultNow(),
 });
 

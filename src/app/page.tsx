@@ -7,7 +7,8 @@ import MonthlyProgrammingCalendar from '@/components/MonthlyProgrammingCalendar'
 import HomeCarousel from '@/components/HomeCarousel';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PersistentTabs } from '@/components/PersistentTabs';
 import { NavBar } from '@/components/NavBar';
 
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,10 @@ export default async function Home() {
   const allPrograms = await getPrograms();
   const laptopHours = await getLaptopHours();
 
+  // The Community Room gets its own request tab; keep it out of the general room picker.
+  const communityRoom = rooms.find((r) => /community/i.test(r.name));
+  const bookableRooms = rooms.filter((r) => r.id !== communityRoom?.id);
+
   return (
     <main className="min-h-screen bg-white p-4 md:p-6 flex flex-col">
       <div className="max-w-6xl mx-auto space-y-4 flex-grow w-full">
@@ -27,10 +32,11 @@ export default async function Home() {
             description="Browse rooms, book services, and reserve your space"
         />
 
-        <Tabs defaultValue="dashboard">
-            <TabsList className="grid w-full grid-cols-4 mb-4 max-w-2xl">
+        <PersistentTabs defaultValue="dashboard" values={['dashboard', 'book', 'community', 'laptop', 'bookings']}>
+            <TabsList className={`grid w-full mb-4 max-w-3xl ${communityRoom ? 'grid-cols-5' : 'grid-cols-4'}`}>
                 <TabsTrigger value="dashboard">Today</TabsTrigger>
                 <TabsTrigger value="book">Book a Room</TabsTrigger>
+                {communityRoom && <TabsTrigger value="community">Community Room</TabsTrigger>}
                 <TabsTrigger value="laptop">Reserve a Laptop</TabsTrigger>
                 <TabsTrigger value="bookings">Current Bookings</TabsTrigger>
             </TabsList>
@@ -53,8 +59,20 @@ export default async function Home() {
             </TabsContent>
 
             <TabsContent value="book">
-                <BookingInterface rooms={rooms} />
+                <BookingInterface rooms={bookableRooms} />
             </TabsContent>
+
+            {communityRoom && (
+                <TabsContent value="community">
+                    <div className="mb-4">
+                        <h2 className="text-lg font-semibold text-slate-800">Request the Community Room</h2>
+                        <p className="text-sm text-muted-foreground">
+                            Pick a date and time to request the {communityRoom.name}. Your request will be confirmed once approved.
+                        </p>
+                    </div>
+                    <BookingInterface rooms={[communityRoom]} lockedRoomId={communityRoom.id} requestMode />
+                </TabsContent>
+            )}
 
             <TabsContent value="laptop">
                 <LaptopBookingInterface laptopHours={laptopHours} />
@@ -63,7 +81,7 @@ export default async function Home() {
             <TabsContent value="bookings">
                 <PublicBookings rooms={rooms} bookings={bookings} />
             </TabsContent>
-        </Tabs>
+        </PersistentTabs>
       </div>
 
       <footer className="mt-12 py-6 border-t border-secondary text-center">

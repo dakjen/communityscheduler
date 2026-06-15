@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PersistentTabs } from '@/components/PersistentTabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -149,6 +150,9 @@ type Program = {
     isRecurring: boolean;
     recurrencePattern: string | null;
     attendees: string;
+    roomId?: number | null;
+    endTime?: string | null;
+    roomName?: string | null;
 };
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -182,7 +186,7 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
 
     // Program state
     const [newProgram, setNewProgram] = useState({
-        name: '', responsibleParty: '', date: '', time: '', isRecurring: false,
+        name: '', responsibleParty: '', date: '', time: '', endTime: '', roomId: '', isRecurring: false,
         frequency: 'weekly', daysOfWeek: [] as number[], endDate: '', dayOfMonth: 1, attendees: ''
     });
     const [editingProgram, setEditingProgram] = useState<Program & { frequency?: string; daysOfWeek?: number[]; endDate?: string; dayOfMonth?: number } | null>(null);
@@ -354,17 +358,20 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
 
     const handleCreateProgram = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!newProgram.roomId) { toast.error('Please choose a room for this program'); return; }
         try {
             await createProgram({
                 name: newProgram.name,
                 responsibleParty: newProgram.responsibleParty,
                 date: newProgram.date,
                 time: newProgram.time,
+                endTime: newProgram.endTime,
+                roomId: parseInt(newProgram.roomId),
                 isRecurring: newProgram.isRecurring,
                 recurrencePattern: buildRecurrencePattern(newProgram),
                 attendees: newProgram.attendees,
             });
-            setNewProgram({ name: '', responsibleParty: '', date: '', time: '', isRecurring: false, frequency: 'weekly', daysOfWeek: [], endDate: '', dayOfMonth: 1, attendees: '' });
+            setNewProgram({ name: '', responsibleParty: '', date: '', time: '', endTime: '', roomId: '', isRecurring: false, frequency: 'weekly', daysOfWeek: [], endDate: '', dayOfMonth: 1, attendees: '' });
             toast.success('Program created');
         } catch (e: any) {
             toast.error(e.message || 'Failed to create program');
@@ -374,6 +381,7 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
     const handleUpdateProgram = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingProgram) return;
+        if (!editingProgram.roomId) { toast.error('Please choose a room for this program'); return; }
         try {
             await updateProgram({
                 id: editingProgram.id,
@@ -381,6 +389,8 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                 responsibleParty: editingProgram.responsibleParty,
                 date: editingProgram.date,
                 time: editingProgram.time,
+                endTime: editingProgram.endTime || '',
+                roomId: editingProgram.roomId,
                 isRecurring: editingProgram.isRecurring,
                 recurrencePattern: buildRecurrencePattern({
                     isRecurring: editingProgram.isRecurring,
@@ -446,7 +456,7 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
     };
 
     return (
-        <Tabs defaultValue="bookings" className="w-full">
+        <PersistentTabs defaultValue="bookings" values={['bookings', 'rooms', 'laptops', 'programming', 'admins', 'requests']} className="w-full">
             <TabsList className="grid w-full grid-cols-6 mb-8">
                 <TabsTrigger value="bookings">Bookings</TabsTrigger>
                 <TabsTrigger value="rooms">Rooms</TabsTrigger>
@@ -740,7 +750,7 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                         />
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-3 gap-4">
                                     <div className="space-y-2">
                                         <Label>Date</Label>
                                         <Input
@@ -751,7 +761,7 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Time</Label>
+                                        <Label>Start Time</Label>
                                         <Input
                                             type="time"
                                             value={newProgram.time}
@@ -759,6 +769,29 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                             required
                                         />
                                     </div>
+                                    <div className="space-y-2">
+                                        <Label>End Time</Label>
+                                        <Input
+                                            type="time"
+                                            value={newProgram.endTime}
+                                            onChange={e => setNewProgram({...newProgram, endTime: e.target.value})}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Room</Label>
+                                    <Select value={newProgram.roomId} onValueChange={(val) => setNewProgram({...newProgram, roomId: val})}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Choose a room" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {rooms.map((room) => (
+                                                <SelectItem key={room.id} value={room.id.toString()}>{room.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">The room will be reserved and blocked from booking during this program.</p>
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Who Should Attend</Label>
@@ -875,8 +908,11 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                                     {program.responsibleParty} &bull; {program.attendees}
                                                 </p>
                                                 <p className="text-sm font-semibold text-slate-700">
-                                                    {program.date} at {program.time} &bull; {formatRecurrence(program)}
+                                                    {program.date} at {program.time}{program.endTime ? `–${program.endTime}` : ''} &bull; {formatRecurrence(program)}
                                                 </p>
+                                                {program.roomName && (
+                                                    <p className="text-xs text-slate-500">Room: {program.roomName}</p>
+                                                )}
                                             </div>
                                             <div className="flex gap-2">
                                                 <Dialog open={isEditProgramOpen && editingProgram?.id === program.id} onOpenChange={(open) => {
@@ -921,7 +957,7 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                                                         />
                                                                     </div>
                                                                 </div>
-                                                                <div className="grid grid-cols-2 gap-4">
+                                                                <div className="grid grid-cols-3 gap-4">
                                                                     <div className="space-y-2">
                                                                         <Label>Date</Label>
                                                                         <Input
@@ -932,7 +968,7 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                                                         />
                                                                     </div>
                                                                     <div className="space-y-2">
-                                                                        <Label>Time</Label>
+                                                                        <Label>Start Time</Label>
                                                                         <Input
                                                                             type="time"
                                                                             value={editingProgram.time}
@@ -940,6 +976,28 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                                                             required
                                                                         />
                                                                     </div>
+                                                                    <div className="space-y-2">
+                                                                        <Label>End Time</Label>
+                                                                        <Input
+                                                                            type="time"
+                                                                            value={editingProgram.endTime || ''}
+                                                                            onChange={e => setEditingProgram({...editingProgram, endTime: e.target.value})}
+                                                                            required
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label>Room</Label>
+                                                                    <Select value={editingProgram.roomId ? editingProgram.roomId.toString() : ''} onValueChange={(val) => setEditingProgram({...editingProgram, roomId: parseInt(val)})}>
+                                                                        <SelectTrigger>
+                                                                            <SelectValue placeholder="Choose a room" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {rooms.map((room) => (
+                                                                                <SelectItem key={room.id} value={room.id.toString()}>{room.name}</SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
                                                                 </div>
                                                                 <div className="space-y-2">
                                                                     <Label>Who Should Attend</Label>
@@ -1295,6 +1353,6 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                     </Card>
                 </div>
             </TabsContent>
-        </Tabs>
+        </PersistentTabs>
     );
 }

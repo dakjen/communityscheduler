@@ -9,6 +9,29 @@ import { getSession, signSession, setSession, clearSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { sendBookingConfirmation, sendStaffNotification } from '@/lib/email';
 import { loginLimiter, registrationLimiter, usernameCheckLimiter } from '@/lib/rate-limit';
+import { programOccursOn } from '@/lib/programs';
+
+// Combine a calendar day with an HH:mm time into a Date.
+function atTimeOfDay(day: Date, hhmm: string): Date {
+    const [h, m] = hhmm.split(':').map(Number);
+    const d = new Date(day);
+    d.setHours(h || 0, m || 0, 0, 0);
+    return d;
+}
+
+// Time intervals a room is reserved for by programming on a given day.
+// A program with no endTime falls back to a 1-hour block.
+async function getProgramBusyIntervals(roomId: number, day: Date): Promise<{ startTime: Date; endTime: Date }[]> {
+    const roomPrograms = await db.select().from(programs).where(eq(programs.roomId, roomId)).execute();
+    const intervals: { startTime: Date; endTime: Date }[] = [];
+    for (const p of roomPrograms) {
+        if (!p.time || !programOccursOn(p, day)) continue;
+        const start = atTimeOfDay(day, p.time);
+        const end = p.endTime ? atTimeOfDay(day, p.endTime) : new Date(start.getTime() + 60 * 60 * 1000);
+        intervals.push({ startTime: start, endTime: end });
+    }
+    return intervals;
+}
 
 // --- Weekly Hours Helpers ---
 
@@ -246,7 +269,10 @@ export async function getBookings(roomId: number, date: Date) {
       )
   ).execute();
 
-  return foundBookings;
+  // Programs assigned to this room also make it unavailable during their time.
+  const programIntervals = await getProgramBusyIntervals(roomId, date);
+
+  return [...foundBookings, ...programIntervals];
 }
 
 export async function getBookingsForDate(date: Date) {
@@ -301,6 +327,15 @@ export async function createBooking(data: {
 
   if (conflict) {
     throw new Error('Time slot is already booked.');
+  }
+
+  // Block bookings that overlap programming reserved for this room.
+  const programIntervals = await getProgramBusyIntervals(data.roomId, data.startTime);
+  const programConflict = programIntervals.find(
+    (b) => b.endTime > data.startTime && b.startTime < data.endTime
+  );
+  if (programConflict) {
+    throw new Error('This room is reserved for programming during that time.');
   }
 
   await db.insert(bookings).values({
@@ -610,7 +645,23 @@ export async function updateAppointmentStatus(id: number, status: 'confirmed' | 
 // --- Programming Actions ---
 
 export async function getPrograms() {
-    return await db.select().from(programs).orderBy(programs.date, programs.time).execute();
+    return await db.select({
+        id: programs.id,
+        name: programs.name,
+        responsibleParty: programs.responsibleParty,
+        date: programs.date,
+        time: programs.time,
+        isRecurring: programs.isRecurring,
+        recurrencePattern: programs.recurrencePattern,
+        attendees: programs.attendees,
+        roomId: programs.roomId,
+        endTime: programs.endTime,
+        roomName: rooms.name,
+    })
+        .from(programs)
+        .leftJoin(rooms, eq(programs.roomId, rooms.id))
+        .orderBy(programs.date, programs.time)
+        .execute();
 }
 
 export async function getTodaysPrograms() {
@@ -654,6 +705,12 @@ export async function getTodaysPrograms() {
     });
 }
 
+function assertProgramRoom(data: { roomId: number; time: string; endTime: string }) {
+    if (!data.roomId) throw new Error('Please assign a room to this program.');
+    if (!data.endTime) throw new Error('Please set an end time for this program.');
+    if (data.time && data.endTime <= data.time) throw new Error('End time must be after the start time.');
+}
+
 export async function createProgram(data: {
     name: string;
     responsibleParty: string;
@@ -662,9 +719,12 @@ export async function createProgram(data: {
     isRecurring: boolean;
     recurrencePattern?: string | null;
     attendees: string;
+    roomId: number;
+    endTime: string;
 }) {
     const session = await getSession();
     if (!session) throw new Error('Unauthorized');
+    assertProgramRoom(data);
 
     await db.insert(programs).values({
         name: data.name,
@@ -674,6 +734,8 @@ export async function createProgram(data: {
         isRecurring: data.isRecurring,
         recurrencePattern: data.recurrencePattern || null,
         attendees: data.attendees,
+        roomId: data.roomId,
+        endTime: data.endTime,
     }).execute();
 
     revalidatePath('/');
@@ -690,9 +752,12 @@ export async function updateProgram(data: {
     isRecurring: boolean;
     recurrencePattern?: string | null;
     attendees: string;
+    roomId: number;
+    endTime: string;
 }) {
     const session = await getSession();
     if (!session) throw new Error('Unauthorized');
+    assertProgramRoom(data);
 
     await db.update(programs).set({
         name: data.name,
@@ -702,6 +767,8 @@ export async function updateProgram(data: {
         isRecurring: data.isRecurring,
         recurrencePattern: data.recurrencePattern || null,
         attendees: data.attendees,
+        roomId: data.roomId,
+        endTime: data.endTime,
     }).where(eq(programs.id, data.id)).execute();
 
     revalidatePath('/');

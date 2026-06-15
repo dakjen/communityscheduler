@@ -76,6 +76,9 @@ type Program = {
     isRecurring: boolean;
     recurrencePattern: string | null;
     attendees: string;
+    roomId?: number | null;
+    endTime?: string | null;
+    roomName?: string | null;
 };
 
 function getStaffScheduleToday(staff: StaffMember): string[] | null {
@@ -310,13 +313,13 @@ export default function TodayDashboard({
                                                         )}
                                                     </div>
                                                     <p className="text-sm font-semibold text-gray-700">
-                                                        {formatTime(p.time)}
+                                                        {formatTime(p.time)}{p.endTime ? ` – ${formatTime(p.endTime)}` : ''}
                                                     </p>
                                                     <p className="text-sm text-gray-600 mt-0.5">
                                                         Led by {p.responsibleParty}
                                                     </p>
                                                     <p className="text-xs text-gray-400 mt-0.5">
-                                                        {p.attendees}
+                                                        {p.roomName ? `${p.roomName} • ` : ''}{p.attendees}
                                                     </p>
                                                 </div>
                                             ))}

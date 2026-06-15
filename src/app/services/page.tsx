@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import { format } from 'date-fns';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PersistentTabs } from '@/components/PersistentTabs';
 import { RequestAppointmentForm } from '@/components/RequestAppointmentForm';
 import { NavBar } from '@/components/NavBar';
 import { Fragment } from 'react';
@@ -166,7 +167,7 @@ export default async function ServicesPage() {
             description="Explore what we offer at the PCC Building"
         />
 
-        <Tabs defaultValue="amenities" className="w-full">
+        <PersistentTabs defaultValue="amenities" values={['amenities', 'entrepreneurship', 'employment']} className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-8 max-w-xl">
                 <TabsTrigger value="amenities">Amenities</TabsTrigger>
                 <TabsTrigger value="entrepreneurship">Entrepreneurship</TabsTrigger>
@@ -225,7 +226,7 @@ export default async function ServicesPage() {
                     </section>
                 </div>
             </TabsContent>
-        </Tabs>
+        </PersistentTabs>
       </div>
 
       <footer className="mt-12 py-6 border-t border-secondary text-center">

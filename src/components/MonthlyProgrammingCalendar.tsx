@@ -9,7 +9,7 @@ import {
     eachDayOfInterval, format, isSameMonth, isSameDay, isSameWeek,
     addMonths, subMonths,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, Repeat, Clock, User, Users, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Repeat, Clock, User, Users, CalendarDays, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { programOccursOn } from '@/lib/programs';
 
@@ -22,6 +22,9 @@ type Program = {
     isRecurring: boolean;
     recurrencePattern: string | null;
     attendees: string;
+    roomId?: number | null;
+    endTime?: string | null;
+    roomName?: string | null;
 };
 
 type ProgType = 'oneoff' | 'daily' | 'weekly' | 'monthly';
@@ -95,8 +98,14 @@ function ProgramPopover({ program, day, trigger }: { program: Program; day: Date
                         </div>
                         <div className="flex items-center gap-2">
                             <Clock className="h-3.5 w-3.5 text-slate-400" />
-                            {formatTime(program.time)}
+                            {formatTime(program.time)}{program.endTime ? ` – ${formatTime(program.endTime)}` : ''}
                         </div>
+                        {program.roomName && (
+                            <div className="flex items-center gap-2">
+                                <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                                {program.roomName}
+                            </div>
+                        )}
                         <div className="flex items-center gap-2">
                             <User className="h-3.5 w-3.5 text-slate-400" />
                             Led by {program.responsibleParty}
