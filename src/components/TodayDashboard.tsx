@@ -1,8 +1,9 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { format, isToday } from 'date-fns';
+import { format, isToday, isSameDay, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { parseSchedule, resolveDaySlots } from '@/lib/availability';
+import { programOccursOn } from '@/lib/programs';
 
 const SERVICES = [
     {
@@ -143,8 +144,20 @@ export default function TodayDashboard({
         })
         .filter(Boolean) as (StaffMember & { todaySlots: string[] })[];
 
-    // Sort programs by time
-    const sortedPrograms = [...programs].sort((a, b) => a.time.localeCompare(b.time));
+    // Programming for the whole current week (Sun–Sat), grouped by day.
+    const weekProgramsByDay = eachDayOfInterval({
+        start: startOfWeek(today, { weekStartsOn: 0 }),
+        end: endOfWeek(today, { weekStartsOn: 0 }),
+    })
+        .map((day) => ({
+            day,
+            items: programs
+                .filter((p) => programOccursOn(p, day))
+                .sort((a, b) => a.time.localeCompare(b.time)),
+        }))
+        .filter((d) => d.items.length > 0);
+
+    const weekHasPrograms = weekProgramsByDay.length > 0;
 
     return (
         <div className="space-y-3">
@@ -267,38 +280,47 @@ export default function TodayDashboard({
                     </CardContent>
                 </Card>
 
-                {/* Programming */}
+                {/* Programming — this week */}
                 <Card className="border">
                     <CardHeader className="pb-2 pt-3 border-b">
                         <CardTitle className="text-sm font-semibold flex items-center gap-2">
                             <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#3b3b3b' }} />
-                            Programming
+                            Programming This Week
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-2 pb-3">
-                        {sortedPrograms.length === 0 ? (
-                            <p className="text-gray-400 text-sm">No programs scheduled for today.</p>
+                        {!weekHasPrograms ? (
+                            <p className="text-gray-400 text-sm">No programs scheduled this week.</p>
                         ) : (
-                            <div className="space-y-1.5">
-                                {sortedPrograms.map((p) => (
-                                    <div key={p.id} className="border rounded-md px-2 py-1.5">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <h3 className="text-base font-semibold text-gray-800">{p.name}</h3>
-                                            {p.isRecurring && (
-                                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">
-                                                    RECURRING
-                                                </span>
-                                            )}
+                            <div className="space-y-3">
+                                {weekProgramsByDay.map(({ day, items }) => (
+                                    <div key={format(day, 'yyyy-MM-dd')}>
+                                        <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${isSameDay(day, today) ? 'text-primary' : 'text-gray-400'}`}>
+                                            {format(day, 'EEEE, MMM d')}{isSameDay(day, today) && ' • Today'}
                                         </div>
-                                        <p className="text-sm font-semibold text-purple-700">
-                                            {formatTime(p.time)}
-                                        </p>
-                                        <p className="text-sm text-gray-600 mt-0.5">
-                                            Led by {p.responsibleParty}
-                                        </p>
-                                        <p className="text-xs text-gray-400 mt-0.5">
-                                            {p.attendees}
-                                        </p>
+                                        <div className="space-y-1.5">
+                                            {items.map((p) => (
+                                                <div key={`${p.id}-${format(day, 'yyyy-MM-dd')}`} className="border rounded-md px-2 py-1.5">
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <h3 className="text-base font-semibold text-gray-800">{p.name}</h3>
+                                                        {p.isRecurring && (
+                                                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-stone-100 text-stone-700">
+                                                                RECURRING
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm font-semibold text-gray-700">
+                                                        {formatTime(p.time)}
+                                                    </p>
+                                                    <p className="text-sm text-gray-600 mt-0.5">
+                                                        Led by {p.responsibleParty}
+                                                    </p>
+                                                    <p className="text-xs text-gray-400 mt-0.5">
+                                                        {p.attendees}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 ))}
                             </div>

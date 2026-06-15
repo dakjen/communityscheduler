@@ -1,4 +1,4 @@
-import { getRooms, getAllBookings, getStaffHours, getTodaysPrograms, getLaptopHours, getPrograms } from './actions';
+import { getRooms, getAllBookings, getStaffHours, getLaptopHours, getPrograms } from './actions';
 import BookingInterface from '@/components/BookingInterface';
 import LaptopBookingInterface from '@/components/LaptopBookingInterface';
 import PublicBookings from '@/components/PublicBookings';
@@ -16,7 +16,6 @@ export default async function Home() {
   const rooms = await getRooms();
   const bookings = await getAllBookings();
   const staff = await getStaffHours();
-  const todaysPrograms = await getTodaysPrograms();
   const allPrograms = await getPrograms();
   const laptopHours = await getLaptopHours();
 
@@ -42,7 +41,7 @@ export default async function Home() {
                         {
                             key: 'today',
                             title: 'Today',
-                            content: <TodayDashboard rooms={rooms} bookings={bookings} staff={staff} programs={todaysPrograms} />,
+                            content: <TodayDashboard rooms={rooms} bookings={bookings} staff={staff} programs={allPrograms} />,
                         },
                         {
                             key: 'month',

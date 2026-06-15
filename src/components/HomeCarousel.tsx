@@ -12,18 +12,34 @@ export default function HomeCarousel({
     autoAdvanceMs = 6000,
 }: { slides: Slide[]; autoAdvanceMs?: number }) {
     const [index, setIndex] = useState(0);
+    const [paused, setPaused] = useState(false);
     const touchStartX = useRef<number | null>(null);
     const pointerStartX = useRef<number | null>(null);
+    const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const SWIPE_THRESHOLD = 50;
+    const PAUSE_MS = 15000;
+
+    // Auto-flips when idle; any tap/click/swipe pauses it for a bit so popups
+    // and reading aren't yanked away, then it resumes on its own.
+    const markInteraction = () => {
+        setPaused(true);
+        if (resumeTimer.current) clearTimeout(resumeTimer.current);
+        resumeTimer.current = setTimeout(() => setPaused(false), PAUSE_MS);
+    };
+
+    useEffect(() => () => {
+        if (resumeTimer.current) clearTimeout(resumeTimer.current);
+    }, []);
 
     useEffect(() => {
         if (!autoAdvanceMs || autoAdvanceMs <= 0) return;
         if (slides.length < 2) return;
+        if (paused) return;
         const id = setInterval(() => {
             setIndex(prev => (prev + 1) % slides.length);
         }, autoAdvanceMs);
         return () => clearInterval(id);
-    }, [autoAdvanceMs, slides.length]);
+    }, [autoAdvanceMs, slides.length, paused]);
 
     const go = (next: number) => {
         const n = slides.length;
@@ -57,7 +73,12 @@ export default function HomeCarousel({
     };
 
     return (
-        <div className="space-y-3">
+        <div
+            className="space-y-3"
+            onClickCapture={markInteraction}
+            onPointerDownCapture={markInteraction}
+            onTouchStartCapture={markInteraction}
+        >
             <div className="flex items-center justify-between gap-2">
                 <Button
                     variant="ghost"
