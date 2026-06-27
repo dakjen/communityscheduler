@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-    deleteBooking, createRoom, deleteRoom, updateRoom,
+    deleteBooking, approveBooking, rejectBooking, createRoom, deleteRoom, updateRoom,
     createAdmin, deleteAdmin, updateAdmin,
     approveAdmin, rejectAdmin,
     createProgram, updateProgram, deleteProgram,
@@ -204,6 +204,25 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
             toast.success('Booking cancelled');
         } catch (e) {
             toast.error('Failed to cancel');
+        }
+    };
+
+    const handleApproveBooking = async (id: number) => {
+        try {
+            await approveBooking(id);
+            toast.success('Request approved — confirmation email sent');
+        } catch (e) {
+            toast.error('Failed to approve');
+        }
+    };
+
+    const handleRejectBooking = async (id: number) => {
+        if (!confirm('Reject this request? The requester will be emailed and the booking removed.')) return;
+        try {
+            await rejectBooking(id);
+            toast.success('Request rejected — requester notified');
+        } catch (e) {
+            toast.error('Failed to reject');
         }
     };
 
@@ -490,7 +509,18 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                         {bookings.map((booking) => (
                                             <div key={booking.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50">
                                                 <div>
-                                                    <h4 className="font-medium">{booking.purpose}</h4>
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="font-medium">{booking.purpose}</h4>
+                                                        {booking.status === 'pending' ? (
+                                                            <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                                                                Pending approval
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-800">
+                                                                Confirmed
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <p className="text-sm text-muted-foreground">
                                                         {booking.customerName} • {booking.roomName}
                                                     </p>
@@ -498,9 +528,21 @@ export default function AdminDashboard({ bookings, rooms, admins, appointmentReq
                                                         {format(booking.startTime, 'MMM d, h:mm a')} - {format(booking.endTime, 'h:mm a')}
                                                     </p>
                                                 </div>
-                                                <Button variant="ghost" size="icon" onClick={() => handleDeleteBooking(booking.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50">
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                <div className="flex items-center gap-1">
+                                                    {booking.status === 'pending' && (
+                                                        <>
+                                                            <Button variant="outline" size="icon" onClick={() => handleApproveBooking(booking.id)} className="text-green-600 hover:text-green-700 hover:bg-green-50" title="Approve">
+                                                                <Check className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button variant="outline" size="icon" onClick={() => handleRejectBooking(booking.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50" title="Reject">
+                                                                <X className="h-4 w-4" />
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteBooking(booking.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50" title="Delete">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>

@@ -7,9 +7,14 @@ import { revalidatePath } from 'next/cache';
 import { compare, hash } from 'bcryptjs';
 import { getSession, signSession, setSession, clearSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { sendBookingConfirmation, sendStaffNotification } from '@/lib/email';
+import { sendBookingConfirmation, sendStaffNotification, sendBookingRequestReceived, sendBookingDeclined } from '@/lib/email';
 import { loginLimiter, registrationLimiter, usernameCheckLimiter } from '@/lib/rate-limit';
 import { programOccursOn } from '@/lib/programs';
+
+// The Community Room requires admin approval; other rooms confirm instantly.
+function isCommunityRoom(roomName: string | null | undefined): boolean {
+    return /community/i.test(roomName || '');
+}
 
 // Combine a calendar day with an HH:mm time into a Date.
 function atTimeOfDay(day: Date, hhmm: string): Date {
@@ -338,34 +343,89 @@ export async function createBooking(data: {
     throw new Error('This room is reserved for programming during that time.');
   }
 
+  // Community Room requests await approval; all other rooms confirm on submit.
+  const needsApproval = isCommunityRoom(room.name);
+
   await db.insert(bookings).values({
     ...data,
-    status: 'pending',
+    status: needsApproval ? 'pending' : 'confirmed',
   }).execute();
 
-  // Send booking confirmation email to customer
-  sendBookingConfirmation({
+  const emailData = {
     customerName: data.customerName,
     customerEmail: data.customerEmail,
     purpose: data.purpose,
     startTime: data.startTime,
     endTime: data.endTime,
     roomName: room.name,
-  });
+  };
+  if (needsApproval) {
+    sendBookingRequestReceived(emailData);
+  } else {
+    sendBookingConfirmation(emailData);
+  }
 
   revalidatePath('/');
   revalidatePath('/admin');
   return { success: true };
 }
 
+async function getBookingWithRoom(id: number) {
+  const rows = await db.select({
+    customerName: bookings.customerName,
+    customerEmail: bookings.customerEmail,
+    purpose: bookings.purpose,
+    startTime: bookings.startTime,
+    endTime: bookings.endTime,
+    roomName: rooms.name,
+  })
+    .from(bookings)
+    .leftJoin(rooms, eq(bookings.roomId, rooms.id))
+    .where(eq(bookings.id, id))
+    .execute();
+  return rows[0];
+}
+
 export async function approveBooking(id: number) {
+  const session = await getSession();
+  if (!session) throw new Error('Unauthorized');
+
+  const booking = await getBookingWithRoom(id);
   await db.update(bookings).set({ status: 'confirmed' }).where(eq(bookings.id, id)).execute();
+
+  if (booking) {
+    sendBookingConfirmation({
+      customerName: booking.customerName,
+      customerEmail: booking.customerEmail,
+      purpose: booking.purpose,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      roomName: booking.roomName || 'Community Room',
+    });
+  }
+
   revalidatePath('/admin');
   revalidatePath('/');
 }
 
 export async function rejectBooking(id: number) {
+  const session = await getSession();
+  if (!session) throw new Error('Unauthorized');
+
+  const booking = await getBookingWithRoom(id);
   await db.delete(bookings).where(eq(bookings.id, id)).execute();
+
+  if (booking) {
+    sendBookingDeclined({
+      customerName: booking.customerName,
+      customerEmail: booking.customerEmail,
+      purpose: booking.purpose,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      roomName: booking.roomName || 'Community Room',
+    });
+  }
+
   revalidatePath('/admin');
   revalidatePath('/');
 }

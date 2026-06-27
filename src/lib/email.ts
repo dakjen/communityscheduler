@@ -149,6 +149,73 @@ export async function sendBookingConfirmation(data: {
 }
 
 /**
+ * Acknowledge a room request that still needs approval (e.g. Community Room).
+ */
+export async function sendBookingRequestReceived(data: {
+  customerName: string;
+  customerEmail: string;
+  purpose: string;
+  startTime: Date;
+  endTime: Date;
+  roomName: string;
+}) {
+  const firstName = data.customerName.split(' ')[0];
+
+  await sendEmail({
+    to: data.customerEmail,
+    toName: data.customerName,
+    subject: `Request received: ${data.purpose}`,
+    html: buildEmailHtml({
+      heading: 'We received your request',
+      greeting: `Hi ${firstName},`,
+      intro: `Thanks for your request to use the ${data.roomName}. It's pending approval — we'll email you again as soon as it's reviewed.`,
+      rows: [
+        { label: 'Event', value: data.purpose },
+        { label: 'Date', value: format(new Date(data.startTime), 'EEEE, MMMM d, yyyy') },
+        { label: 'Time', value: `${format(new Date(data.startTime), 'h:mm a')} – ${format(new Date(data.endTime), 'h:mm a')}` },
+        { label: 'Location', value: data.roomName },
+        { label: 'Status', value: 'Pending approval' },
+      ],
+      ctaLabel: 'View Details',
+      ctaUrl: SITE_URL,
+    }),
+  });
+}
+
+/**
+ * Notify a requester that their room request was declined.
+ */
+export async function sendBookingDeclined(data: {
+  customerName: string;
+  customerEmail: string;
+  purpose: string;
+  startTime: Date;
+  endTime: Date;
+  roomName: string;
+}) {
+  const firstName = data.customerName.split(' ')[0];
+
+  await sendEmail({
+    to: data.customerEmail,
+    toName: data.customerName,
+    subject: `Update on your request: ${data.purpose}`,
+    html: buildEmailHtml({
+      heading: 'Your request was not approved',
+      greeting: `Hi ${firstName},`,
+      intro: `Unfortunately we couldn't approve your request for the ${data.roomName} at the time below. Please feel free to submit a new request for a different time, or reach out with questions.`,
+      rows: [
+        { label: 'Event', value: data.purpose },
+        { label: 'Date', value: format(new Date(data.startTime), 'EEEE, MMMM d, yyyy') },
+        { label: 'Time', value: `${format(new Date(data.startTime), 'h:mm a')} – ${format(new Date(data.endTime), 'h:mm a')}` },
+        { label: 'Location', value: data.roomName },
+      ],
+      ctaLabel: 'Submit a New Request',
+      ctaUrl: SITE_URL,
+    }),
+  });
+}
+
+/**
  * Send notification email to staff when an appointment is requested
  */
 export async function sendStaffNotification(data: {

@@ -15,6 +15,7 @@ type Booking = {
     startTime: Date;
     endTime: Date;
     purpose: string;
+    status: string | null;
 };
 
 type Room = {
@@ -50,10 +51,13 @@ export default function PublicBookings({ rooms, bookings }: { rooms: Room[], boo
         setOpenRooms(roomId !== null ? [roomId] : []);
     };
 
+    // Hide requests still awaiting approval (e.g. pending Community Room requests).
+    const visibleBookings = bookings.filter(b => b.status !== 'pending');
+
     // Filter bookings based on selectedRoomId
     const filteredBookings = selectedRoomId
-        ? bookings.filter(booking => booking.roomId === selectedRoomId)
-        : bookings;
+        ? visibleBookings.filter(booking => booking.roomId === selectedRoomId)
+        : visibleBookings;
 
     // Reorder rooms to put selected one at the top
     const displayedRooms = [...rooms];
@@ -131,9 +135,9 @@ export default function PublicBookings({ rooms, bookings }: { rooms: Room[], boo
                 {rooms.map(room => {
                     const isOpen = openRooms.includes(room.id);
                     // Filter bookings for this room and this week (optimization)
-                    const roomBookings = bookings.filter(b => 
-                        b.roomId === room.id && 
-                        b.endTime > weekStart && 
+                    const roomBookings = visibleBookings.filter(b =>
+                        b.roomId === room.id &&
+                        b.endTime > weekStart &&
                         b.startTime < addWeeks(weekStart, 1)
                     );
 
